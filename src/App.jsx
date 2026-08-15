@@ -42,10 +42,79 @@ const TIPOS = [
   ["titulo", "Título"],
 ];
 
+/* ============ Personalización de tarjetas ============ */
+const COLORES_TARJETA = {
+  bruma: "#B7C6CE",
+  salvia: "#AEC2A8",
+  arena: "#D8C3A0",
+  lavanda: "#BEB4D6",
+  rosa: "#D9B3B0",
+  cielo: "#A9C6D9",
+  musgo: "#8FA37E",
+  ocre: "#D9A24B",
+};
+
+const PATRONES = [
+  { id: "plano", nombre: "Plano" },
+  { id: "puntos", nombre: "Puntos" },
+  { id: "diagonales", nombre: "Diagonales" },
+  { id: "cuadricula", nombre: "Cuadrícula" },
+  { id: "rombos", nombre: "Rombos" },
+  { id: "confeti", nombre: "Confeti" },
+];
+
+const ESTILO_TARJETA_POR_DEFECTO = { patron: "plano", color: "bruma" };
+
+function estiloTarjeta(estilo) {
+  const color = COLORES_TARJETA[estilo?.color] || COLORES_TARJETA.bruma;
+  const patron = estilo?.patron || "plano";
+  switch (patron) {
+    case "puntos":
+      return {
+        backgroundColor: color + "22",
+        backgroundImage: `radial-gradient(${color} 1.6px, transparent 1.6px)`,
+        backgroundSize: "12px 12px",
+      };
+    case "diagonales":
+      return {
+        backgroundColor: color + "22",
+        backgroundImage: `repeating-linear-gradient(45deg, ${color} 0, ${color} 4px, transparent 4px, transparent 12px)`,
+      };
+    case "cuadricula":
+      return {
+        backgroundColor: color + "22",
+        backgroundImage: `linear-gradient(${color} 1.5px, transparent 1.5px), linear-gradient(90deg, ${color} 1.5px, transparent 1.5px)`,
+        backgroundSize: "13px 13px",
+      };
+    case "rombos":
+      return {
+        backgroundColor: color + "22",
+        backgroundImage: `repeating-linear-gradient(45deg, ${color} 0, ${color} 2.5px, transparent 2.5px, transparent 11px), repeating-linear-gradient(-45deg, ${color} 0, ${color} 2.5px, transparent 2.5px, transparent 11px)`,
+      };
+    case "confeti":
+      return {
+        backgroundColor: color + "1c",
+        backgroundImage: [
+          `radial-gradient(circle at 15% 30%, ${color} 3px, transparent 3.5px)`,
+          `radial-gradient(circle at 70% 18%, ${color} 2px, transparent 2.5px)`,
+          `radial-gradient(circle at 42% 68%, ${color} 4px, transparent 4.5px)`,
+          `radial-gradient(circle at 88% 60%, ${color} 2.4px, transparent 2.9px)`,
+          `radial-gradient(circle at 22% 88%, ${color} 3px, transparent 3.5px)`,
+          `radial-gradient(circle at 60% 42%, ${color} 2px, transparent 2.5px)`,
+          `radial-gradient(circle at 90% 92%, ${color} 2.6px, transparent 3px)`,
+        ].join(", "),
+      };
+    case "plano":
+    default:
+      return { backgroundColor: color };
+  }
+}
+
 const K_INDICE = "noddo:indice";
 const K_LIENZO = (id) => `noddo:lienzo:${id}`;
 const K_LEGADO = "lienzo:v3";
 const K_SESION = "noddo:sesion";
+const K_CONTADOR = "noddo:contador";
 
 const uid = () => Math.random().toString(36).slice(2, 9);
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -205,6 +274,27 @@ export default function App() {
         }
         await escribir(K_INDICE, idx);
       }
+
+      if (idx.some((l) => l.numero == null || !l.estilo)) {
+        let contador = (await leer(K_CONTADOR)) || 0;
+        const numerosAsignados = {};
+        [...idx]
+          .sort((a, b) => (a.fecha || 0) - (b.fecha || 0))
+          .forEach((l) => {
+            if (l.numero == null) {
+              contador += 1;
+              numerosAsignados[l.id] = contador;
+            }
+          });
+        idx = idx.map((l) => ({
+          ...l,
+          numero: l.numero ?? numerosAsignados[l.id],
+          estilo: l.estilo || ESTILO_TARJETA_POR_DEFECTO,
+        }));
+        await escribir(K_CONTADOR, contador);
+        await escribir(K_INDICE, idx);
+      }
+
       setIndice(idx);
     })();
   }, []);
@@ -241,6 +331,8 @@ export default function App() {
       onAbrir={setAbierto}
       onCrear={async (nombre) => {
         const id = uid();
+        const numero = ((await leer(K_CONTADOR)) || 0) + 1;
+        await escribir(K_CONTADOR, numero);
         await escribir(K_LIENZO(id), {
           nodos: [],
           enlaces: [],
@@ -249,13 +341,24 @@ export default function App() {
           fondo: "bruma",
         });
         await actualizarIndice([
-          { id, nombre, nodos: 0, sesion: 1, fecha: Date.now() },
+          {
+            id,
+            nombre,
+            nodos: 0,
+            sesion: 1,
+            fecha: Date.now(),
+            numero,
+            estilo: ESTILO_TARJETA_POR_DEFECTO,
+          },
           ...indice,
         ]);
         setAbierto(id);
       }}
       onRenombrar={(id, nombre) =>
         actualizarIndice(indice.map((l) => (l.id === id ? { ...l, nombre } : l)))
+      }
+      onPersonalizar={(id, estilo) =>
+        actualizarIndice(indice.map((l) => (l.id === id ? { ...l, estilo } : l)))
       }
       onEliminar={(id) => actualizarIndice(indice.filter((l) => l.id !== id))}
     />
@@ -374,9 +477,19 @@ function Login({ onEntrar }) {
 }
 
 /* ============ Inicio ============ */
-function Inicio({ indice, profesional, onSalir, onAbrir, onCrear, onRenombrar, onEliminar }) {
+function Inicio({
+  indice,
+  profesional,
+  onSalir,
+  onAbrir,
+  onCrear,
+  onRenombrar,
+  onPersonalizar,
+  onEliminar,
+}) {
   const [nuevo, setNuevo] = useState("");
   const [editando, setEditando] = useState(null);
+  const [personalizando, setPersonalizando] = useState(null);
 
   return (
     <div
@@ -496,103 +609,218 @@ function Inicio({ indice, profesional, onSalir, onAbrir, onCrear, onRenombrar, o
               gap: 14,
             }}
           >
-            {indice.map((l) => (
-              <div
-                key={l.id}
-                className="nd-card"
-                style={{
-                  background: C.panel,
-                  border: `1px solid ${C.hair}`,
-                  borderRadius: 12,
-                  padding: 16,
-                  boxShadow: "0 2px 10px -6px rgba(22,50,63,.30)",
-                  cursor: "pointer",
-                }}
-                onClick={() => editando !== l.id && onAbrir(l.id)}
-              >
-                <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-                  {editando === l.id ? (
-                    <input
-                      autoFocus
-                      defaultValue={l.nombre}
-                      onClick={(e) => e.stopPropagation()}
-                      onBlur={(e) => {
-                        onRenombrar(l.id, e.target.value.trim() || l.nombre);
-                        setEditando(null);
-                      }}
-                      onKeyDown={(e) => e.key === "Enter" && e.target.blur()}
+            {indice.map((l) => {
+              const estilo = l.estilo || ESTILO_TARJETA_POR_DEFECTO;
+              return (
+                <div
+                  key={l.id}
+                  className="nd-card"
+                  style={{
+                    background: C.panel,
+                    border: `1px solid ${C.hair}`,
+                    borderRadius: 12,
+                    overflow: "hidden",
+                    boxShadow: "0 2px 10px -6px rgba(22,50,63,.30)",
+                    cursor: "pointer",
+                  }}
+                  onClick={() => editando !== l.id && personalizando !== l.id && onAbrir(l.id)}
+                >
+                  <div
+                    style={{
+                      height: 44,
+                      position: "relative",
+                      ...estiloTarjeta(estilo),
+                    }}
+                  >
+                    <span
                       style={{
-                        flex: 1,
+                        position: "absolute",
+                        top: 8,
+                        right: 10,
                         fontFamily: SERIF,
-                        fontSize: 17,
-                        padding: "3px 5px",
-                        border: `1px solid ${C.borde}`,
-                        borderRadius: 5,
-                      }}
-                    />
-                  ) : (
-                    <div
-                      style={{
-                        flex: 1,
-                        fontFamily: SERIF,
-                        fontSize: 18,
-                        lineHeight: 1.25,
+                        fontSize: 12,
+                        color: C.ink,
+                        background: "rgba(255,255,255,.78)",
+                        padding: "2px 7px",
+                        borderRadius: 999,
+                        letterSpacing: 0.3,
                       }}
                     >
-                      {l.nombre}
+                      Nº {String(l.numero ?? "—").padStart(2, "0")}
+                    </span>
+                  </div>
+
+                  <div style={{ padding: 16 }}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+                      {editando === l.id ? (
+                        <input
+                          autoFocus
+                          defaultValue={l.nombre}
+                          onClick={(e) => e.stopPropagation()}
+                          onBlur={(e) => {
+                            onRenombrar(l.id, e.target.value.trim() || l.nombre);
+                            setEditando(null);
+                          }}
+                          onKeyDown={(e) => e.key === "Enter" && e.target.blur()}
+                          style={{
+                            flex: 1,
+                            fontFamily: SERIF,
+                            fontSize: 17,
+                            padding: "3px 5px",
+                            border: `1px solid ${C.borde}`,
+                            borderRadius: 5,
+                          }}
+                        />
+                      ) : (
+                        <div
+                          style={{
+                            flex: 1,
+                            fontFamily: SERIF,
+                            fontSize: 18,
+                            lineHeight: 1.25,
+                          }}
+                        >
+                          {l.nombre}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
 
-                <div
-                  style={{
-                    marginTop: 14,
-                    display: "flex",
-                    gap: 14,
-                    fontSize: 11,
-                    color: C.inkSoft,
-                    letterSpacing: 0.3,
-                  }}
-                >
-                  <span>Sesión {l.sesion ?? 1}</span>
-                  <span>
-                    {l.nodos ?? 0} {l.nodos === 1 ? "nodo" : "nodos"}
-                  </span>
-                </div>
+                    <div
+                      style={{
+                        marginTop: 14,
+                        display: "flex",
+                        gap: 14,
+                        fontSize: 11,
+                        color: C.inkSoft,
+                        letterSpacing: 0.3,
+                      }}
+                    >
+                      <span>Sesión {l.sesion ?? 1}</span>
+                      <span>
+                        {l.nodos ?? 0} {l.nodos === 1 ? "nodo" : "nodos"}
+                      </span>
+                    </div>
 
-                <div
-                  style={{
-                    marginTop: 14,
-                    paddingTop: 12,
-                    borderTop: `1px solid ${C.hair}`,
-                    display: "flex",
-                    gap: 4,
-                  }}
-                >
-                  <button
-                    className="nd-mini"
-                    style={mini}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setEditando(l.id);
-                    }}
-                  >
-                    Renombrar
-                  </button>
-                  <button
-                    className="nd-mini"
-                    style={{ ...mini, color: C.peligro }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (window.confirm(`¿Eliminar el lienzo "${l.nombre}"?`))
-                        onEliminar(l.id);
-                    }}
-                  >
-                    Eliminar
-                  </button>
+                    <div
+                      style={{
+                        marginTop: 14,
+                        paddingTop: 12,
+                        borderTop: `1px solid ${C.hair}`,
+                        display: "flex",
+                        gap: 4,
+                      }}
+                    >
+                      <button
+                        className="nd-mini"
+                        style={mini}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditando(l.id);
+                        }}
+                      >
+                        Renombrar
+                      </button>
+                      <button
+                        className="nd-mini"
+                        style={mini}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setPersonalizando((p) => (p === l.id ? null : l.id));
+                        }}
+                      >
+                        Personalizar
+                      </button>
+                      <button
+                        className="nd-mini"
+                        style={{ ...mini, color: C.peligro }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (window.confirm(`¿Eliminar el lienzo "${l.nombre}"?`))
+                            onEliminar(l.id);
+                        }}
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+
+                    {personalizando === l.id && (
+                      <div
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                          marginTop: 12,
+                          paddingTop: 12,
+                          borderTop: `1px solid ${C.hair}`,
+                        }}
+                      >
+                        <div style={etiqueta}>Patrón</div>
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: 6,
+                            flexWrap: "wrap",
+                            marginTop: 6,
+                            marginBottom: 12,
+                          }}
+                        >
+                          {PATRONES.map((p) => (
+                            <button
+                              key={p.id}
+                              title={p.nombre}
+                              onClick={() =>
+                                onPersonalizar(l.id, { ...estilo, patron: p.id })
+                              }
+                              className="nd-swatch"
+                              style={{
+                                width: 28,
+                                height: 28,
+                                borderRadius: 7,
+                                cursor: "pointer",
+                                border: `1.5px solid ${
+                                  estilo.patron === p.id ? C.ink : C.borde
+                                }`,
+                                ...estiloTarjeta({ patron: p.id, color: estilo.color }),
+                              }}
+                            />
+                          ))}
+                        </div>
+                        <div style={etiqueta}>Color</div>
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: 6,
+                            flexWrap: "wrap",
+                            marginTop: 6,
+                          }}
+                        >
+                          {Object.entries(COLORES_TARJETA).map(([k, hex]) => (
+                            <button
+                              key={k}
+                              title={k}
+                              onClick={() => onPersonalizar(l.id, { ...estilo, color: k })}
+                              className="nd-swatch"
+                              style={{
+                                width: 22,
+                                height: 22,
+                                borderRadius: "50%",
+                                cursor: "pointer",
+                                background: hex,
+                                border: `1px solid ${
+                                  estilo.color === k ? C.ink : "transparent"
+                                }`,
+                                boxShadow:
+                                  estilo.color === k
+                                    ? `0 0 0 2px ${C.panel} inset`
+                                    : "none",
+                              }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
