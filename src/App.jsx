@@ -45,6 +45,7 @@ const TIPOS = [
 const K_INDICE = "noddo:indice";
 const K_LIENZO = (id) => `noddo:lienzo:${id}`;
 const K_LEGADO = "lienzo:v3";
+const K_SESION = "noddo:sesion";
 
 const uid = () => Math.random().toString(36).slice(2, 9);
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -142,9 +143,39 @@ function Noddo({ tamano = 15, onClick, sub }) {
 }
 
 /* ============ Raíz ============ */
+function Splash() {
+  return (
+    <div style={{ ...pantalla, background: FONDOS.bruma.bg }} className="nd">
+      <style>{CSS}</style>
+      <div style={{ margin: "auto", opacity: 0.5 }}>
+        <Noddo tamano={16} />
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
+  const [sesion, setSesion] = useState(undefined);
   const [indice, setIndice] = useState(null);
   const [abierto, setAbierto] = useState(null);
+
+  useEffect(() => {
+    (async () => {
+      const s = await leer(K_SESION);
+      setSesion(s || null);
+    })();
+  }, []);
+
+  const entrar = async (nombre) => {
+    const s = { nombre, fecha: Date.now() };
+    await escribir(K_SESION, s);
+    setSesion(s);
+  };
+
+  const salir = async () => {
+    await escribir(K_SESION, null);
+    setSesion(null);
+  };
 
   useEffect(() => {
     (async () => {
@@ -183,15 +214,9 @@ export default function App() {
     await escribir(K_INDICE, nuevo);
   };
 
-  if (indice === null)
-    return (
-      <div style={{ ...pantalla, background: FONDOS.bruma.bg }} className="nd">
-        <style>{CSS}</style>
-        <div style={{ margin: "auto", opacity: 0.5 }}>
-          <Noddo tamano={16} />
-        </div>
-      </div>
-    );
+  if (sesion === undefined) return <Splash />;
+  if (!sesion) return <Login onEntrar={entrar} />;
+  if (indice === null) return <Splash />;
 
   if (abierto)
     return (
@@ -211,6 +236,8 @@ export default function App() {
   return (
     <Inicio
       indice={indice}
+      profesional={sesion.nombre}
+      onSalir={salir}
       onAbrir={setAbierto}
       onCrear={async (nombre) => {
         const id = uid();
@@ -235,8 +262,119 @@ export default function App() {
   );
 }
 
+/* ============ Login ============ */
+function Login({ onEntrar }) {
+  const [nombre, setNombre] = useState("");
+  const [pin, setPin] = useState("");
+  const [error, setError] = useState("");
+
+  const entrar = () => {
+    if (!nombre.trim()) return setError("Ingresa tu nombre.");
+    if (pin.trim().length < 4) return setError("El PIN debe tener al menos 4 dígitos.");
+    setError("");
+    onEntrar(nombre.trim());
+  };
+
+  return (
+    <div
+      className="nd"
+      style={{
+        ...pantalla,
+        background: FONDOS.bruma.bg,
+        fontFamily: FONT,
+        color: C.ink,
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 20,
+      }}
+    >
+      <style>{CSS}</style>
+      <div
+        style={{
+          width: "min(360px, 100%)",
+          background: C.panel,
+          border: `1px solid ${C.hair}`,
+          borderRadius: 16,
+          padding: "36px 32px",
+          boxShadow: "0 24px 60px -24px rgba(22,50,63,.35)",
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: 8 }}>
+          <Noddo tamano={19} />
+        </div>
+        <p
+          style={{
+            textAlign: "center",
+            fontSize: 12.5,
+            color: C.inkSoft,
+            marginTop: 4,
+            marginBottom: 32,
+          }}
+        >
+          Acceso personal
+        </p>
+
+        <label style={etiquetaCampo}>Nombre del profesional</label>
+        <input
+          autoFocus
+          value={nombre}
+          onChange={(e) => setNombre(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && entrar()}
+          placeholder="Tu nombre"
+          style={campoLogin}
+        />
+
+        <label style={{ ...etiquetaCampo, marginTop: 16 }}>PIN</label>
+        <input
+          value={pin}
+          onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
+          onKeyDown={(e) => e.key === "Enter" && entrar()}
+          placeholder="••••"
+          type="password"
+          inputMode="numeric"
+          style={{ ...campoLogin, letterSpacing: 5, fontSize: 18, textAlign: "center" }}
+        />
+
+        {error && (
+          <p style={{ fontSize: 12, color: C.peligro, marginTop: 10, marginBottom: 0 }}>
+            {error}
+          </p>
+        )}
+
+        <button
+          className="nd-btn"
+          onClick={entrar}
+          style={{
+            ...boton(true),
+            width: "100%",
+            padding: "12px 16px",
+            marginTop: 24,
+            fontSize: 13.5,
+          }}
+        >
+          Entrar
+        </button>
+
+        <p
+          style={{
+            fontSize: 11,
+            color: C.inkTenue,
+            textAlign: "center",
+            marginTop: 20,
+            marginBottom: 0,
+            lineHeight: 1.5,
+          }}
+        >
+          Cualquier nombre y PIN funcionan por ahora — la validación real llega con las
+          cuentas.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 /* ============ Inicio ============ */
-function Inicio({ indice, onAbrir, onCrear, onRenombrar, onEliminar }) {
+function Inicio({ indice, profesional, onSalir, onAbrir, onCrear, onRenombrar, onEliminar }) {
   const [nuevo, setNuevo] = useState("");
   const [editando, setEditando] = useState(null);
 
@@ -253,7 +391,25 @@ function Inicio({ indice, onAbrir, onCrear, onRenombrar, onEliminar }) {
     >
       <style>{CSS}</style>
       <div style={{ maxWidth: 940, margin: "0 auto", padding: "48px 28px 64px" }}>
-        <Noddo tamano={19} sub="Visualización y memoria en psicoterapia" />
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: 16,
+            flexWrap: "wrap",
+          }}
+        >
+          <Noddo tamano={19} sub="Visualización y memoria en psicoterapia" />
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <span style={{ fontSize: 12, color: C.inkSoft, marginRight: 4 }}>
+              {profesional}
+            </span>
+            <button className="nd-mini" style={mini} onClick={onSalir}>
+              Cerrar sesión
+            </button>
+          </div>
+        </div>
 
         <div
           style={{
@@ -1626,6 +1782,27 @@ const mini = {
 };
 
 const separador = { width: 1, height: 16, background: C.hair, margin: "0 3px" };
+
+const etiquetaCampo = {
+  display: "block",
+  fontSize: 10.5,
+  letterSpacing: 0.8,
+  textTransform: "uppercase",
+  color: C.inkSoft,
+  marginBottom: 6,
+};
+
+const campoLogin = {
+  width: "100%",
+  fontFamily: FONT,
+  fontSize: 14,
+  padding: "10px 12px",
+  border: `1px solid ${C.borde}`,
+  borderRadius: 8,
+  background: C.panel,
+  color: C.ink,
+  boxSizing: "border-box",
+};
 
 const quitar = {
   border: "none",
