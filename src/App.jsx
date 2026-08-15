@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
+import { toPng } from "html-to-image";
 
 /* ============ Sistema visual ============ */
 const FONDOS = {
@@ -463,6 +464,8 @@ function Editor({ id, nombre, onInicio, onResumen }) {
   const areaRef = useRef(null);
   const arrastre = useRef(null);
   const primer = useRef(true);
+  const historia = useRef({ pasado: [], futuro: [] });
+  const [, marcarHistoria] = useState(0);
 
   const F = FONDOS[fondo] || FONDOS.bruma;
   const avisar = (t, ms = 2200) => {
@@ -539,7 +542,40 @@ function Editor({ id, nombre, onInicio, onResumen }) {
     return [(cx - r.left - vista.x) / vista.k, (cy - r.top - vista.y) / vista.k];
   };
 
+  const HISTORIA_MAX = 60;
+  const registrarHistoria = () => {
+    historia.current.pasado.push({ nodos, enlaces });
+    if (historia.current.pasado.length > HISTORIA_MAX) historia.current.pasado.shift();
+    historia.current.futuro = [];
+    marcarHistoria((t) => t + 1);
+  };
+
+  const deshacer = () => {
+    const pasado = historia.current.pasado;
+    if (!pasado.length) return;
+    const previo = pasado.pop();
+    historia.current.futuro.push({ nodos, enlaces });
+    setNodos(previo.nodos);
+    setEnlaces(previo.enlaces);
+    setSel(null);
+    setEditando(null);
+    marcarHistoria((t) => t + 1);
+  };
+
+  const rehacer = () => {
+    const futuro = historia.current.futuro;
+    if (!futuro.length) return;
+    const siguiente = futuro.pop();
+    historia.current.pasado.push({ nodos, enlaces });
+    setNodos(siguiente.nodos);
+    setEnlaces(siguiente.enlaces);
+    setSel(null);
+    setEditando(null);
+    marcarHistoria((t) => t + 1);
+  };
+
   const crearNodo = (x, y, tipo) => {
+    registrarHistoria();
     const n = {
       id: uid(),
       x: x - W[tipo] / 2,
@@ -559,9 +595,25 @@ function Editor({ id, nombre, onInicio, onResumen }) {
     setNodos((ns) => ns.map((n) => (n.id === nid ? { ...n, ...campos } : n)));
 
   const eliminar = (nid) => {
+    registrarHistoria();
     setNodos((ns) => ns.filter((n) => n.id !== nid));
     setEnlaces((es) => es.filter((e) => e.a !== nid && e.b !== nid));
     setSel(null);
+  };
+
+  const duplicar = () => {
+    const n = nodos.find((x) => x.id === sel);
+    if (!n) return;
+    registrarHistoria();
+    const copia = {
+      ...n,
+      id: uid(),
+      x: n.x + 28,
+      y: n.y + 28,
+      tareas: n.tareas.map((t) => ({ ...t, id: uid() })),
+    };
+    setNodos((ns) => [...ns, copia]);
+    setSel(copia.id);
   };
 
   const conectar = (destino) => {
@@ -573,8 +625,33 @@ function Editor({ id, nombre, onInicio, onResumen }) {
     const rep = enlaces.some(
       (e) => (e.a === a.id && e.b === b.id) || (e.a === b.id && e.b === a.id)
     );
-    if (!rep) setEnlaces((es) => [...es, { id: uid(), a: a.id, b: b.id }]);
+    if (!rep) {
+      registrarHistoria();
+      setEnlaces((es) => [...es, { id: uid(), a: a.id, b: b.id }]);
+    }
     setSel(destino);
+  };
+
+  const exportarImagen = async () => {
+    if (!areaRef.current) return;
+    const selPrevio = sel;
+    setSel(null);
+    await new Promise((r) => setTimeout(r, 60));
+    try {
+      const dataUrl = await toPng(areaRef.current, {
+        backgroundColor: F.bg,
+        pixelRatio: 2,
+      });
+      const a = document.createElement("a");
+      a.href = dataUrl;
+      a.download = `${nombre || "lienzo"} - sesion ${sesion}.png`;
+      a.click();
+      avisar("Imagen exportada.");
+    } catch (err) {
+      avisar("No se pudo exportar la imagen.", 3500);
+    } finally {
+      setSel(selPrevio);
+    }
   };
 
   const fondoDown = (e) => {
@@ -609,6 +686,7 @@ function Editor({ id, nombre, onInicio, onResumen }) {
       return;
     }
     setSel(n.id);
+    registrarHistoria();
     arrastre.current = {
       tipo: "nodo",
       id: n.id,
@@ -651,6 +729,53 @@ function Editor({ id, nombre, onInicio, onResumen }) {
   }, [vista.k]);
 
   const nodoSel = nodos.find((n) => n.id === sel) || null;
+
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      const enCampo = ["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName);
+      const mod = e.ctrlKey || e.metaKey;
+
+      if (mod && e.key.toLowerCase() === "z" && !e.shiftKey) {
+        if (enCampo) return;
+        e.preventDefault();
+        deshacer();
+        return;
+      }
+      if (mod && (e.key.toLowerCase() === "y" || (e.shiftKey && e.key.toLowerCase() === "z"))) {
+        if (enCampo) return;
+        e.preventDefault();
+        rehacer();
+        return;
+      }
+      if (enCampo) return;
+
+      if (mod && e.key.toLowerCase() === "d") {
+        e.preventDefault();
+        duplicar();
+        return;
+      }
+      if ((e.key === "Delete" || e.key === "Backspace") && nodoSel && !editando) {
+        e.preventDefault();
+        eliminar(nodoSel.id);
+        return;
+      }
+      if (e.key === "Enter" && nodoSel && !editando) {
+        e.preventDefault();
+        registrarHistoria();
+        setEditando(nodoSel.id);
+        return;
+      }
+      if (e.key === "Escape") {
+        setEditando(null);
+        setNuevaTarea(null);
+        setPaleta(false);
+        setSel(null);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nodoSel, editando, sel, nodos, enlaces]);
 
   return (
     <div
@@ -729,9 +854,10 @@ function Editor({ id, nombre, onInicio, onResumen }) {
                   {activo && (
                     <g
                       style={{ pointerEvents: "auto", cursor: "pointer" }}
-                      onClick={() =>
-                        setEnlaces((es) => es.filter((x) => x.id !== e.id))
-                      }
+                      onClick={() => {
+                        registrarHistoria();
+                        setEnlaces((es) => es.filter((x) => x.id !== e.id));
+                      }}
                     >
                       <circle
                         cx={(x1 + x2) / 2}
@@ -765,27 +891,34 @@ function Editor({ id, nombre, onInicio, onResumen }) {
               nuevaTarea={nuevaTarea === n.id}
               medir={medir}
               onPointerDown={(e) => nodoDown(e, n)}
-              onDobleClic={() => setEditando(n.id)}
+              onDobleClic={() => {
+                registrarHistoria();
+                setEditando(n.id);
+              }}
               onTexto={(texto) => actualizar(n.id, { texto })}
               onFinEdicion={() => setEditando(null)}
-              onToggleTarea={(tid) =>
+              onToggleTarea={(tid) => {
+                registrarHistoria();
                 actualizar(n.id, {
                   tareas: n.tareas.map((t) =>
                     t.id === tid ? { ...t, hecha: !t.hecha } : t
                   ),
-                })
-              }
-              onQuitarTarea={(tid) =>
-                actualizar(n.id, { tareas: n.tareas.filter((t) => t.id !== tid) })
-              }
+                });
+              }}
+              onQuitarTarea={(tid) => {
+                registrarHistoria();
+                actualizar(n.id, { tareas: n.tareas.filter((t) => t.id !== tid) });
+              }}
               onNuevaTarea={(texto) => {
-                if (texto.trim())
+                if (texto.trim()) {
+                  registrarHistoria();
                   actualizar(n.id, {
                     tareas: [
                       ...n.tareas,
                       { id: uid(), texto: texto.trim(), hecha: false },
                     ],
                   });
+                }
                 setNuevaTarea(null);
               }}
             />
@@ -813,7 +946,10 @@ function Editor({ id, nombre, onInicio, onResumen }) {
             <button
               className="nd-mini"
               style={mini}
-              onClick={() => setEditando(nodoSel.id)}
+              onClick={() => {
+                registrarHistoria();
+                setEditando(nodoSel.id);
+              }}
             >
               Escribir
             </button>
@@ -826,6 +962,9 @@ function Editor({ id, nombre, onInicio, onResumen }) {
                 + Tarea
               </button>
             )}
+            <button className="nd-mini" style={mini} onClick={duplicar}>
+              Duplicar
+            </button>
             <span style={separador} />
             {TIPOS.map(([k, label]) => (
               <button
@@ -836,7 +975,10 @@ function Editor({ id, nombre, onInicio, onResumen }) {
                   color: nodoSel.tipo === k ? C.ink : C.inkSoft,
                   background: nodoSel.tipo === k ? C.hair : "transparent",
                 }}
-                onClick={() => actualizar(nodoSel.id, { tipo: k })}
+                onClick={() => {
+                  if (nodoSel.tipo !== k) registrarHistoria();
+                  actualizar(nodoSel.id, { tipo: k });
+                }}
               >
                 {label}
               </button>
@@ -1000,12 +1142,40 @@ function Editor({ id, nombre, onInicio, onResumen }) {
           <span style={{ ...separador, height: 22, margin: "0 5px" }} />
 
           <Dock
+            disabled={!historia.current.pasado.length}
+            onClick={deshacer}
+            icono={
+              <>
+                <path d="M7.5 8.5H15a4.5 4.5 0 0 1 0 9h-3" />
+                <path d="M10.5 5 7 8.5l3.5 3.5" />
+              </>
+            }
+          >
+            Deshacer
+          </Dock>
+          <Dock
+            disabled={!historia.current.futuro.length}
+            onClick={rehacer}
+            icono={
+              <>
+                <path d="M16.5 8.5H9a4.5 4.5 0 0 0 0 9h3" />
+                <path d="M13.5 5 17 8.5l-3.5 3.5" />
+              </>
+            }
+          >
+            Rehacer
+          </Dock>
+
+          <span style={{ ...separador, height: 22, margin: "0 5px" }} />
+
+          <Dock
             activo={!!nodoSel?.foco}
             acento={C.foco}
             onClick={() => {
               if (!nodoSel) return avisar("Selecciona un nodo para ponerlo en foco.");
               if (nodoSel.tipo === "titulo")
                 return avisar("El foco se pone sobre nodos, no sobre títulos.");
+              registrarHistoria();
               actualizar(nodoSel.id, { foco: !nodoSel.foco });
             }}
             icono={
@@ -1041,6 +1211,18 @@ function Editor({ id, nombre, onInicio, onResumen }) {
             }
           >
             Guardar
+          </Dock>
+          <Dock
+            onClick={exportarImagen}
+            icono={
+              <>
+                <path d="M12 4v11" />
+                <path d="M7.5 11.5 12 16l4.5-4.5" />
+                <path d="M4.5 17v2.2a1 1 0 0 0 1 1h13a1 1 0 0 0 1-1V17" />
+              </>
+            }
+          >
+            Exportar
           </Dock>
 
           <div style={sesionCaja}>
@@ -1298,12 +1480,13 @@ function Nodo({
 }
 
 /* ============ Piezas ============ */
-function Dock({ children, activo, onClick, acento, icono }) {
+function Dock({ children, activo, onClick, acento, icono, disabled }) {
   const color = acento || C.ink;
   return (
     <button
       className={`nd-btn ${activo ? "on" : ""}`}
-      onClick={onClick}
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
       style={{
         display: "flex",
         alignItems: "center",
@@ -1312,10 +1495,11 @@ function Dock({ children, activo, onClick, acento, icono }) {
         fontSize: 12,
         padding: "8px 12px",
         borderRadius: 8,
-        cursor: "pointer",
+        cursor: disabled ? "default" : "pointer",
         border: "1px solid transparent",
         background: activo ? color : "transparent",
         color: activo ? (acento ? "#3D2C08" : "#fff") : C.inkSoft,
+        opacity: disabled ? 0.35 : 1,
       }}
     >
       <svg
