@@ -300,6 +300,8 @@ const CSS = `
 .nd input::placeholder, .nd textarea::placeholder { color: ${C.inkTenue}; }
 .nd textarea:focus, .nd input:focus { outline: none; border-color: ${C.inkSoft}; }
 .nd-mini:hover { background: ${C.hair}; color: ${C.ink}; }
+.nd-accion-color { background: transparent; color: ${C.inkSoft}; transition: background .15s ease, color .15s ease; }
+.nd-accion-color:hover, .nd-accion-color:active { background: var(--accion-bg); color: var(--accion-color); }
 `;
 
 /* ============ Marca ============ */
@@ -1374,6 +1376,7 @@ function Inicio({
 function BotonAccionColor({ onClick, titulo, bg, color, children }) {
   return (
     <button
+      className="nd-accion-color"
       title={titulo}
       aria-label={titulo}
       onClick={onClick}
@@ -1386,9 +1389,9 @@ function BotonAccionColor({ onClick, titulo, bg, color, children }) {
         padding: 0,
         border: "none",
         borderRadius: 7,
-        background: bg,
-        color,
         cursor: "pointer",
+        "--accion-bg": bg,
+        "--accion-color": color,
       }}
     >
       <svg
