@@ -110,6 +110,67 @@ function estiloTarjeta(estilo) {
   }
 }
 
+function mezclarConBlanco(hex, factorColor) {
+  const n = parseInt(hex.slice(1), 16);
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  const mezclar = (c) => Math.round(c * factorColor + 255 * (1 - factorColor)).toString(16).padStart(2, "0");
+  return `#${mezclar(r)}${mezclar(g)}${mezclar(b)}`;
+}
+
+// Tinte pálido y opaco del color elegido: la "hoja de papel" del lienzo.
+function colorFondoLienzo(estilo) {
+  const color = COLORES_TARJETA[estilo?.color] || COLORES_TARJETA.bruma;
+  return mezclarConBlanco(color, 0.16);
+}
+
+/*
+ * Versión tenue del mismo patrón, para usar como fondo del lienzo: misma
+ * forma que en la tarjeta pero mucho más suave, y a escala de canvas
+ * infinito (tamaños más grandes, atados al zoom/paneo vía k). Se dibuja
+ * sobre el tinte opaco de colorFondoLienzo, no lleva su propio backgroundColor.
+ */
+function patronLienzo(estilo, k = 1) {
+  const color = COLORES_TARJETA[estilo?.color] || COLORES_TARJETA.bruma;
+  const patron = estilo?.patron || "plano";
+  const t = (px) => px * k;
+  switch (patron) {
+    case "puntos":
+      return {
+        backgroundImage: `radial-gradient(${color}66 ${t(1.8)}px, transparent ${t(1.8)}px)`,
+        backgroundSize: `${t(30)}px ${t(30)}px`,
+      };
+    case "diagonales":
+      return {
+        backgroundImage: `repeating-linear-gradient(45deg, ${color}4d 0, ${color}4d ${t(3)}px, transparent ${t(3)}px, transparent ${t(30)}px)`,
+      };
+    case "cuadricula":
+      return {
+        backgroundImage: `linear-gradient(${color}4d ${t(1.4)}px, transparent ${t(1.4)}px), linear-gradient(90deg, ${color}4d ${t(1.4)}px, transparent ${t(1.4)}px)`,
+        backgroundSize: `${t(30)}px ${t(30)}px`,
+      };
+    case "rombos":
+      return {
+        backgroundImage: `repeating-linear-gradient(45deg, ${color}4d 0, ${color}4d ${t(2.4)}px, transparent ${t(2.4)}px, transparent ${t(26)}px), repeating-linear-gradient(-45deg, ${color}4d 0, ${color}4d ${t(2.4)}px, transparent ${t(2.4)}px, transparent ${t(26)}px)`,
+      };
+    case "confeti":
+      return {
+        backgroundImage: [
+          `radial-gradient(circle at ${t(10)}px ${t(14)}px, ${color}66 ${t(2.2)}px, transparent ${t(2.6)}px)`,
+          `radial-gradient(circle at ${t(46)}px ${t(8)}px, ${color}66 ${t(1.6)}px, transparent ${t(2)}px)`,
+          `radial-gradient(circle at ${t(58)}px ${t(40)}px, ${color}66 ${t(2.4)}px, transparent ${t(2.8)}px)`,
+          `radial-gradient(circle at ${t(20)}px ${t(52)}px, ${color}66 ${t(1.8)}px, transparent ${t(2.2)}px)`,
+          `radial-gradient(circle at ${t(48)}px ${t(62)}px, ${color}66 ${t(1.5)}px, transparent ${t(1.9)}px)`,
+        ].join(", "),
+        backgroundSize: `${t(72)}px ${t(72)}px`,
+      };
+    case "plano":
+    default:
+      return {};
+  }
+}
+
 const K_INDICE = "noddo:indice";
 const K_LIENZO = (id) => `noddo:lienzo:${id}`;
 const K_LEGADO = "lienzo:v3";
@@ -324,7 +385,6 @@ export default function App() {
             enlaces: legado.enlaces || [],
             vista: legado.vista || { x: 0, y: 0, k: 1 },
             sesion: legado.sesion || 1,
-            fondo: "bruma",
           });
           idx = [
             {
@@ -374,12 +434,17 @@ export default function App() {
   if (!sesion) return <Login onEntrar={entrar} />;
   if (indice === null) return <Splash />;
 
+  const cambiarEstilo = (id, estilo) =>
+    actualizarIndice(indice.map((l) => (l.id === id ? { ...l, estilo } : l)));
+
   if (abierto)
     return (
       <Editor
         key={abierto}
         id={abierto}
         nombre={indice.find((l) => l.id === abierto)?.nombre || "Lienzo"}
+        estilo={indice.find((l) => l.id === abierto)?.estilo || ESTILO_TARJETA_POR_DEFECTO}
+        onCambiarEstilo={(estilo) => cambiarEstilo(abierto, estilo)}
         onInicio={() => setAbierto(null)}
         onResumen={(datos) =>
           actualizarIndice(
@@ -406,7 +471,6 @@ export default function App() {
           enlaces: [],
           vista: { x: 0, y: 0, k: 1 },
           sesion: 1,
-          fondo: "bruma",
         });
         await actualizarIndice([
           {
@@ -426,9 +490,7 @@ export default function App() {
       onRenombrar={(id, nombre) =>
         actualizarIndice(indice.map((l) => (l.id === id ? { ...l, nombre } : l)))
       }
-      onPersonalizar={(id, estilo) =>
-        actualizarIndice(indice.map((l) => (l.id === id ? { ...l, estilo } : l)))
-      }
+      onPersonalizar={cambiarEstilo}
       onActualizarPaciente={(id, datosPaciente) =>
         actualizarIndice(
           indice.map((l) =>
@@ -1284,10 +1346,9 @@ function Inicio({
 }
 
 /* ============ Editor ============ */
-function Editor({ id, nombre, onInicio, onResumen }) {
+function Editor({ id, nombre, estilo, onCambiarEstilo, onInicio, onResumen }) {
   const [nodos, setNodos] = useState([]);
   const [enlaces, setEnlaces] = useState([]);
-  const [fondo, setFondo] = useState("bruma");
   const [sesion, setSesion] = useState(1);
   const [vista, setVista] = useState({ x: 0, y: 0, k: 1 });
   const [sel, setSel] = useState(null);
@@ -1306,7 +1367,6 @@ function Editor({ id, nombre, onInicio, onResumen }) {
   const historia = useRef({ pasado: [], futuro: [] });
   const [, marcarHistoria] = useState(0);
 
-  const F = FONDOS[fondo] || FONDOS.bruma;
   const avisar = (t, ms = 2200) => {
     setEstado(t);
     setTimeout(() => setEstado(""), ms);
@@ -1320,7 +1380,6 @@ function Editor({ id, nombre, onInicio, onResumen }) {
         setEnlaces(d.enlaces || []);
         setVista(d.vista || { x: 0, y: 0, k: 1 });
         setSesion(d.sesion || 1);
-        setFondo(d.fondo || "bruma");
       }
       setCargando(false);
     })();
@@ -1333,7 +1392,6 @@ function Editor({ id, nombre, onInicio, onResumen }) {
         enlaces,
         vista,
         sesion,
-        fondo,
       });
       onResumen({ nodos: nodos.length, sesion, fecha: Date.now() });
       if (confirmar)
@@ -1348,7 +1406,7 @@ function Editor({ id, nombre, onInicio, onResumen }) {
         );
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [id, nodos, enlaces, vista, sesion, fondo]
+    [id, nodos, enlaces, vista, sesion]
   );
 
   useEffect(() => {
@@ -1359,7 +1417,7 @@ function Editor({ id, nombre, onInicio, onResumen }) {
     }
     const t = setTimeout(() => guardar(false), 800);
     return () => clearTimeout(t);
-  }, [nodos, enlaces, vista, sesion, fondo, cargando, guardar]);
+  }, [nodos, enlaces, vista, sesion, cargando, guardar]);
 
   const medir = useCallback((nid, el) => {
     if (!el) return;
@@ -1478,7 +1536,7 @@ function Editor({ id, nombre, onInicio, onResumen }) {
     await new Promise((r) => setTimeout(r, 60));
     try {
       const dataUrl = await toPng(areaRef.current, {
-        backgroundColor: F.bg,
+        backgroundColor: colorFondoLienzo(estilo),
         pixelRatio: 2,
       });
       const a = document.createElement("a");
@@ -1623,7 +1681,7 @@ function Editor({ id, nombre, onInicio, onResumen }) {
         ...pantalla,
         fontFamily: FONT,
         color: C.ink,
-        background: F.bg,
+        background: colorFondoLienzo(estilo),
         position: "relative",
       }}
     >
@@ -1642,9 +1700,8 @@ function Editor({ id, nombre, onInicio, onResumen }) {
           overflow: "hidden",
           touchAction: "none",
           cursor: modo === "nodo" ? "copy" : "default",
-          backgroundImage: `radial-gradient(${F.grid} 1px, transparent 1px)`,
-          backgroundSize: `${24 * vista.k}px ${24 * vista.k}px`,
           backgroundPosition: `${vista.x}px ${vista.y}px`,
+          ...patronLienzo(estilo, vista.k),
         }}
       >
         {!cargando && !nodos.length && (
@@ -1903,21 +1960,39 @@ function Editor({ id, nombre, onInicio, onResumen }) {
       {paleta && (
         <div style={{ ...flotante, bottom: 86 }}>
           <div style={caja}>
-            <span style={etiqueta}>Fondo</span>
-            {Object.entries(FONDOS).map(([k, f]) => (
+            <span style={etiqueta}>Patrón</span>
+            {PATRONES.map((p) => (
               <button
-                key={k}
+                key={p.id}
                 className="nd-swatch"
-                onClick={() => setFondo(k)}
-                title={f.nombre}
+                onClick={() => onCambiarEstilo({ ...estilo, patron: p.id })}
+                title={p.nombre}
                 style={{
                   width: 26,
                   height: 26,
-                  borderRadius: 8,
+                  borderRadius: 7,
                   cursor: "pointer",
-                  background: f.bg,
-                  border: `1px solid ${fondo === k ? C.ink : C.borde}`,
-                  boxShadow: fondo === k ? `0 0 0 2px ${C.panel} inset` : "none",
+                  border: `1.5px solid ${estilo.patron === p.id ? C.ink : C.borde}`,
+                  ...estiloTarjeta({ patron: p.id, color: estilo.color }),
+                }}
+              />
+            ))}
+            <span style={separador} />
+            <span style={etiqueta}>Color</span>
+            {Object.entries(COLORES_TARJETA).map(([k, hex]) => (
+              <button
+                key={k}
+                className="nd-swatch"
+                onClick={() => onCambiarEstilo({ ...estilo, color: k })}
+                title={k}
+                style={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: "50%",
+                  cursor: "pointer",
+                  background: hex,
+                  border: `1px solid ${estilo.color === k ? C.ink : "transparent"}`,
+                  boxShadow: estilo.color === k ? `0 0 0 2px ${C.panel} inset` : "none",
                 }}
               />
             ))}
