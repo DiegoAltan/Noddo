@@ -71,37 +71,37 @@ function estiloTarjeta(estilo) {
   switch (patron) {
     case "puntos":
       return {
-        backgroundColor: color + "22",
-        backgroundImage: `radial-gradient(${color} 1.6px, transparent 1.6px)`,
-        backgroundSize: "12px 12px",
+        backgroundColor: color + "2e",
+        backgroundImage: `radial-gradient(${color} 2.6px, transparent 2.6px)`,
+        backgroundSize: "18px 18px",
       };
     case "diagonales":
       return {
-        backgroundColor: color + "22",
-        backgroundImage: `repeating-linear-gradient(45deg, ${color} 0, ${color} 4px, transparent 4px, transparent 12px)`,
+        backgroundColor: color + "2e",
+        backgroundImage: `repeating-linear-gradient(45deg, ${color} 0, ${color} 7px, transparent 7px, transparent 18px)`,
       };
     case "cuadricula":
       return {
-        backgroundColor: color + "22",
-        backgroundImage: `linear-gradient(${color} 1.5px, transparent 1.5px), linear-gradient(90deg, ${color} 1.5px, transparent 1.5px)`,
-        backgroundSize: "13px 13px",
+        backgroundColor: color + "2e",
+        backgroundImage: `linear-gradient(${color} 2px, transparent 2px), linear-gradient(90deg, ${color} 2px, transparent 2px)`,
+        backgroundSize: "18px 18px",
       };
     case "rombos":
       return {
-        backgroundColor: color + "22",
-        backgroundImage: `repeating-linear-gradient(45deg, ${color} 0, ${color} 2.5px, transparent 2.5px, transparent 11px), repeating-linear-gradient(-45deg, ${color} 0, ${color} 2.5px, transparent 2.5px, transparent 11px)`,
+        backgroundColor: color + "2e",
+        backgroundImage: `repeating-linear-gradient(45deg, ${color} 0, ${color} 4px, transparent 4px, transparent 16px), repeating-linear-gradient(-45deg, ${color} 0, ${color} 4px, transparent 4px, transparent 16px)`,
       };
     case "confeti":
       return {
-        backgroundColor: color + "1c",
+        backgroundColor: color + "26",
         backgroundImage: [
-          `radial-gradient(circle at 15% 30%, ${color} 3px, transparent 3.5px)`,
-          `radial-gradient(circle at 70% 18%, ${color} 2px, transparent 2.5px)`,
-          `radial-gradient(circle at 42% 68%, ${color} 4px, transparent 4.5px)`,
-          `radial-gradient(circle at 88% 60%, ${color} 2.4px, transparent 2.9px)`,
-          `radial-gradient(circle at 22% 88%, ${color} 3px, transparent 3.5px)`,
-          `radial-gradient(circle at 60% 42%, ${color} 2px, transparent 2.5px)`,
-          `radial-gradient(circle at 90% 92%, ${color} 2.6px, transparent 3px)`,
+          `radial-gradient(circle at 15% 30%, ${color} 4.5px, transparent 5px)`,
+          `radial-gradient(circle at 70% 18%, ${color} 3px, transparent 3.5px)`,
+          `radial-gradient(circle at 42% 68%, ${color} 5.5px, transparent 6px)`,
+          `radial-gradient(circle at 88% 60%, ${color} 3.5px, transparent 4px)`,
+          `radial-gradient(circle at 22% 88%, ${color} 4.5px, transparent 5px)`,
+          `radial-gradient(circle at 60% 42%, ${color} 3px, transparent 3.5px)`,
+          `radial-gradient(circle at 90% 92%, ${color} 4px, transparent 4.5px)`,
         ].join(", "),
       };
     case "plano":
@@ -476,6 +476,44 @@ function Login({ onEntrar }) {
   );
 }
 
+/* ============ Botón ícono (tarjetas de Inicio) ============ */
+function BotonIcono({ onClick, titulo, color, children }) {
+  return (
+    <button
+      className="nd-mini"
+      title={titulo}
+      aria-label={titulo}
+      onClick={onClick}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: 26,
+        height: 26,
+        padding: 0,
+        border: "none",
+        borderRadius: 6,
+        background: "transparent",
+        color: color || C.inkSoft,
+        cursor: "pointer",
+      }}
+    >
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        {children}
+      </svg>
+    </button>
+  );
+}
+
 /* ============ Inicio ============ */
 function Inicio({
   indice,
@@ -496,6 +534,7 @@ function Inicio({
       className="nd"
       style={{
         ...pantalla,
+        display: "block",
         background: FONDOS.bruma.bg,
         overflowY: "auto",
         fontFamily: FONT,
@@ -603,22 +642,23 @@ function Inicio({
         ) : (
           <div
             style={{
-              marginTop: 26,
+              marginTop: 22,
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))",
-              gap: 14,
+              gridTemplateColumns: "repeat(auto-fill, minmax(196px, 1fr))",
+              gap: 10,
             }}
           >
             {indice.map((l) => {
               const estilo = l.estilo || ESTILO_TARJETA_POR_DEFECTO;
+              const colorHex = COLORES_TARJETA[estilo.color] || COLORES_TARJETA.bruma;
               return (
                 <div
                   key={l.id}
                   className="nd-card"
                   style={{
                     background: C.panel,
-                    border: `1px solid ${C.hair}`,
-                    borderRadius: 12,
+                    border: `1px solid ${colorHex}66`,
+                    borderRadius: 10,
                     overflow: "hidden",
                     boxShadow: "0 2px 10px -6px rgba(22,50,63,.30)",
                     cursor: "pointer",
@@ -627,7 +667,7 @@ function Inicio({
                 >
                   <div
                     style={{
-                      height: 44,
+                      height: 60,
                       position: "relative",
                       ...estiloTarjeta(estilo),
                     }}
@@ -635,13 +675,13 @@ function Inicio({
                     <span
                       style={{
                         position: "absolute",
-                        top: 8,
-                        right: 10,
+                        top: 6,
+                        right: 8,
                         fontFamily: SERIF,
-                        fontSize: 12,
+                        fontSize: 11,
                         color: C.ink,
-                        background: "rgba(255,255,255,.78)",
-                        padding: "2px 7px",
+                        background: "rgba(255,255,255,.8)",
+                        padding: "1px 6px",
                         borderRadius: 999,
                         letterSpacing: 0.3,
                       }}
@@ -650,7 +690,7 @@ function Inicio({
                     </span>
                   </div>
 
-                  <div style={{ padding: 16 }}>
+                  <div style={{ padding: 11 }}>
                     <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
                       {editando === l.id ? (
                         <input
@@ -665,8 +705,8 @@ function Inicio({
                           style={{
                             flex: 1,
                             fontFamily: SERIF,
-                            fontSize: 17,
-                            padding: "3px 5px",
+                            fontSize: 15.5,
+                            padding: "2px 4px",
                             border: `1px solid ${C.borde}`,
                             borderRadius: 5,
                           }}
@@ -676,7 +716,7 @@ function Inicio({
                           style={{
                             flex: 1,
                             fontFamily: SERIF,
-                            fontSize: 18,
+                            fontSize: 15.5,
                             lineHeight: 1.25,
                           }}
                         >
@@ -687,10 +727,10 @@ function Inicio({
 
                     <div
                       style={{
-                        marginTop: 14,
+                        marginTop: 7,
                         display: "flex",
-                        gap: 14,
-                        fontSize: 11,
+                        gap: 10,
+                        fontSize: 10,
                         color: C.inkSoft,
                         letterSpacing: 0.3,
                       }}
@@ -703,52 +743,60 @@ function Inicio({
 
                     <div
                       style={{
-                        marginTop: 14,
-                        paddingTop: 12,
+                        marginTop: 8,
+                        paddingTop: 6,
                         borderTop: `1px solid ${C.hair}`,
                         display: "flex",
-                        gap: 4,
+                        alignItems: "center",
+                        gap: 1,
                       }}
                     >
-                      <button
-                        className="nd-mini"
-                        style={mini}
+                      <BotonIcono
+                        titulo="Renombrar"
                         onClick={(e) => {
                           e.stopPropagation();
                           setEditando(l.id);
                         }}
                       >
-                        Renombrar
-                      </button>
-                      <button
-                        className="nd-mini"
-                        style={mini}
+                        <path d="M4.5 19.5l1-4L15 6l3 3-9.5 9.5-4 1z" />
+                        <path d="M13 8l3 3" />
+                      </BotonIcono>
+                      <BotonIcono
+                        titulo="Personalizar"
                         onClick={(e) => {
                           e.stopPropagation();
                           setPersonalizando((p) => (p === l.id ? null : l.id));
                         }}
                       >
-                        Personalizar
-                      </button>
-                      <button
-                        className="nd-mini"
-                        style={{ ...mini, color: C.peligro }}
+                        <path d="M12 3.6c-4.7 0-8.4 3.5-8.4 7.9 0 4.4 3.4 6.9 6.4 6.9 1.6 0 2.1.9 1.6 2 -.4 1 .3 2 1.5 2 4.3 0 7.3-4.1 7.3-8.7 0-5.2-3.7-10.1-8.4-10.1z" />
+                        <circle cx="8.4" cy="10.4" r="1.05" fill="currentColor" stroke="none" />
+                        <circle cx="12" cy="7.8" r="1.05" fill="currentColor" stroke="none" />
+                        <circle cx="15.6" cy="10.4" r="1.05" fill="currentColor" stroke="none" />
+                      </BotonIcono>
+                      <div style={{ flex: 1 }} />
+                      <BotonIcono
+                        titulo="Eliminar"
+                        color={C.peligro}
                         onClick={(e) => {
                           e.stopPropagation();
                           if (window.confirm(`¿Eliminar el lienzo "${l.nombre}"?`))
                             onEliminar(l.id);
                         }}
                       >
-                        Eliminar
-                      </button>
+                        <path d="M5 7h14" />
+                        <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                        <path d="M7 7l1 12a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1l1-12" />
+                        <line x1="10" y1="11" x2="10" y2="16" />
+                        <line x1="14" y1="11" x2="14" y2="16" />
+                      </BotonIcono>
                     </div>
 
                     {personalizando === l.id && (
                       <div
                         onClick={(e) => e.stopPropagation()}
                         style={{
-                          marginTop: 12,
-                          paddingTop: 12,
+                          marginTop: 9,
+                          paddingTop: 9,
                           borderTop: `1px solid ${C.hair}`,
                         }}
                       >
@@ -756,10 +804,10 @@ function Inicio({
                         <div
                           style={{
                             display: "flex",
-                            gap: 6,
+                            gap: 5,
                             flexWrap: "wrap",
                             marginTop: 6,
-                            marginBottom: 12,
+                            marginBottom: 10,
                           }}
                         >
                           {PATRONES.map((p) => (
@@ -771,9 +819,9 @@ function Inicio({
                               }
                               className="nd-swatch"
                               style={{
-                                width: 28,
-                                height: 28,
-                                borderRadius: 7,
+                                width: 24,
+                                height: 24,
+                                borderRadius: 6,
                                 cursor: "pointer",
                                 border: `1.5px solid ${
                                   estilo.patron === p.id ? C.ink : C.borde
@@ -787,7 +835,7 @@ function Inicio({
                         <div
                           style={{
                             display: "flex",
-                            gap: 6,
+                            gap: 5,
                             flexWrap: "wrap",
                             marginTop: 6,
                           }}
@@ -799,8 +847,8 @@ function Inicio({
                               onClick={() => onPersonalizar(l.id, { ...estilo, color: k })}
                               className="nd-swatch"
                               style={{
-                                width: 22,
-                                height: 22,
+                                width: 20,
+                                height: 20,
                                 borderRadius: "50%",
                                 cursor: "pointer",
                                 background: hex,
