@@ -11,17 +11,23 @@ const FONDOS = {
   cielo: { nombre: "Cielo", bg: "#E5EEF3", grid: "#C6DAE6", tinte: "#173442" },
 };
 
+/*
+ * ink/inkSoft/inkTenue/hair/panel/line/borde/fondoApp apuntan a variables CSS
+ * (definidas en CSS más abajo) para poder invertirlas en modo noche sin tocar
+ * cada uso. El editor del lienzo nunca recibe la clase "oscuro" en su raíz,
+ * así que ahí siempre resuelven a los valores claros de por defecto.
+ */
 const C = {
-  ink: "#16323F",
-  inkSoft: "#61787F",
-  inkTenue: "#8FA3AB",
-  hair: "#E2E9EC",
-  panel: "#FFFFFF",
-  line: "#9BB0B9",
+  ink: "var(--nd-ink)",
+  inkSoft: "var(--nd-inkSoft)",
+  inkTenue: "var(--nd-inkTenue)",
+  hair: "var(--nd-hair)",
+  panel: "var(--nd-panel)",
+  line: "var(--nd-line)",
   foco: "#D2A03C",
   focoTexto: "#8A6414",
   done: "#3F7A5C",
-  borde: "#C4D1D7",
+  borde: "var(--nd-borde)",
   tarea: "#E3F0F7",
   tareaBorde: "#BFDCEA",
   tareaTexto: "#1B4A63",
@@ -115,6 +121,16 @@ const K_LIENZO = (id) => `noddo:lienzo:${id}`;
 const K_LEGADO = "lienzo:v3";
 const K_SESION = "noddo:sesion";
 const K_CONTADOR = "noddo:contador";
+const K_PERFIL = "noddo:perfil";
+
+const PERFIL_VACIO = {
+  nombreCompleto: "",
+  profesion: "",
+  registroSIS: "",
+  registroMineduc: "",
+  correo: "",
+  modoOscuro: false,
+};
 
 const uid = () => Math.random().toString(36).slice(2, 9);
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -193,6 +209,26 @@ function bordeCaja(cx, cy, w, h, tx, ty) {
 
 /* ============ Estilos globales ============ */
 const CSS = `
+.nd {
+  --nd-ink: #16323F;
+  --nd-inkSoft: #61787F;
+  --nd-inkTenue: #8FA3AB;
+  --nd-hair: #E2E9EC;
+  --nd-panel: #FFFFFF;
+  --nd-line: #9BB0B9;
+  --nd-borde: #C4D1D7;
+  --nd-fondoApp: #E9EEF0;
+}
+.nd.oscuro {
+  --nd-ink: #E7EDF0;
+  --nd-inkSoft: #A9B8BE;
+  --nd-inkTenue: #6F8189;
+  --nd-hair: #2A3B42;
+  --nd-panel: #1B282E;
+  --nd-line: #4A5D64;
+  --nd-borde: #3A4D54;
+  --nd-fondoApp: #10191D;
+}
 .nd * { box-sizing: border-box; }
 .nd-btn { transition: background .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease; }
 .nd-btn:hover { border-color: ${C.inkTenue}; color: ${C.ink}; }
@@ -256,9 +292,12 @@ function Noddo({ tamano = 15, onClick, sub }) {
 }
 
 /* ============ Raíz ============ */
-function Splash() {
+function Splash({ modoOscuro }) {
   return (
-    <div style={{ ...pantalla, background: FONDOS.bruma.bg }} className="nd">
+    <div
+      style={{ ...pantalla, background: "var(--nd-fondoApp)" }}
+      className={`nd${modoOscuro ? " oscuro" : ""}`}
+    >
       <style>{CSS}</style>
       <div style={{ margin: "auto", opacity: 0.5 }}>
         <Noddo tamano={16} />
@@ -269,6 +308,7 @@ function Splash() {
 
 export default function App() {
   const [sesion, setSesion] = useState(undefined);
+  const [perfil, setPerfil] = useState(undefined);
   const [indice, setIndice] = useState(null);
   const [abierto, setAbierto] = useState(null);
 
@@ -276,6 +316,13 @@ export default function App() {
     (async () => {
       const s = await leer(K_SESION);
       setSesion(s || null);
+    })();
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      const p = await leer(K_PERFIL);
+      setPerfil(p || PERFIL_VACIO);
     })();
   }, []);
 
@@ -288,6 +335,17 @@ export default function App() {
   const salir = async () => {
     await escribir(K_SESION, null);
     setSesion(null);
+  };
+
+  const guardarPerfil = async (datos) => {
+    await escribir(K_PERFIL, datos);
+    setPerfil(datos);
+  };
+
+  const cambiarModoOscuro = async (valor) => {
+    const nuevo = { ...(perfil || PERFIL_VACIO), modoOscuro: valor };
+    await escribir(K_PERFIL, nuevo);
+    setPerfil(nuevo);
   };
 
   useEffect(() => {
@@ -348,9 +406,9 @@ export default function App() {
     await escribir(K_INDICE, nuevo);
   };
 
-  if (sesion === undefined) return <Splash />;
-  if (!sesion) return <Login onEntrar={entrar} />;
-  if (indice === null) return <Splash />;
+  if (sesion === undefined || perfil === undefined) return <Splash />;
+  if (!sesion) return <Login onEntrar={entrar} modoOscuro={perfil.modoOscuro} />;
+  if (indice === null) return <Splash modoOscuro={perfil.modoOscuro} />;
 
   if (abierto)
     return (
@@ -371,6 +429,9 @@ export default function App() {
     <Inicio
       indice={indice}
       profesional={sesion.nombre}
+      perfil={perfil}
+      onGuardarPerfil={guardarPerfil}
+      onCambiarModoOscuro={cambiarModoOscuro}
       onSalir={salir}
       onAbrir={setAbierto}
       onCrear={async (datosPaciente) => {
@@ -424,7 +485,7 @@ export default function App() {
 }
 
 /* ============ Login ============ */
-function Login({ onEntrar }) {
+function Login({ onEntrar, modoOscuro }) {
   const [nombre, setNombre] = useState("");
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
@@ -438,10 +499,10 @@ function Login({ onEntrar }) {
 
   return (
     <div
-      className="nd"
+      className={`nd${modoOscuro ? " oscuro" : ""}`}
       style={{
         ...pantalla,
-        background: FONDOS.bruma.bg,
+        background: "var(--nd-fondoApp)",
         fontFamily: FONT,
         color: C.ink,
         alignItems: "center",
@@ -617,7 +678,6 @@ function ModalPaciente({ titulo, inicial, onGuardar, onCerrar }) {
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="nd"
         style={{
           width: "min(420px, 100%)",
           background: C.panel,
@@ -735,30 +795,228 @@ function ModalPaciente({ titulo, inicial, onGuardar, onCerrar }) {
   );
 }
 
+/* ============ Interruptor ============ */
+function Interruptor({ activo, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      role="switch"
+      aria-checked={activo}
+      style={{
+        width: 40,
+        height: 22,
+        borderRadius: 999,
+        border: "none",
+        padding: 2,
+        cursor: "pointer",
+        background: activo ? C.ink : C.borde,
+        display: "flex",
+        justifyContent: activo ? "flex-end" : "flex-start",
+        flexShrink: 0,
+        transition: "background .15s ease",
+      }}
+    >
+      <span
+        style={{
+          width: 18,
+          height: 18,
+          borderRadius: "50%",
+          background: C.panel,
+          display: "block",
+          boxShadow: "0 1px 3px rgba(0,0,0,.35)",
+        }}
+      />
+    </button>
+  );
+}
+
+/* ============ Modal: perfil profesional ============ */
+function ModalPerfil({ inicial, onGuardar, onCerrar, onCambiarModoOscuro }) {
+  const [datos, setDatos] = useState(inicial);
+  const [error, setError] = useState("");
+
+  const campo = (clave, valor) => {
+    setError("");
+    setDatos((d) => ({ ...d, [clave]: valor }));
+  };
+
+  const guardar = () => {
+    if (!datos.nombreCompleto.trim())
+      return setError("El nombre completo del profesional es obligatorio.");
+    onGuardar({
+      ...datos,
+      nombreCompleto: datos.nombreCompleto.trim(),
+      // el modo noche se guarda al instante al tocar el interruptor; nunca
+      // pisar ese valor vigente con la copia que quedó al abrir el modal.
+      modoOscuro: inicial.modoOscuro,
+    });
+  };
+
+  return (
+    <div
+      onClick={onCerrar}
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(22,50,63,.4)",
+        backdropFilter: "blur(2px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 100,
+        padding: 20,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: "min(420px, 100%)",
+          background: C.panel,
+          borderRadius: 16,
+          padding: "28px 28px 24px",
+          boxShadow: "0 30px 70px -20px rgba(22,50,63,.5)",
+          fontFamily: FONT,
+          color: C.ink,
+          maxHeight: "90vh",
+          overflowY: "auto",
+        }}
+      >
+        <style>{CSS}</style>
+        <h2
+          style={{
+            fontFamily: SERIF,
+            fontSize: 21,
+            fontWeight: 400,
+            margin: "0 0 20px",
+          }}
+        >
+          Perfil profesional
+        </h2>
+
+        <label style={etiquetaCampo}>Nombre completo</label>
+        <input
+          autoFocus
+          value={datos.nombreCompleto}
+          onChange={(e) => campo("nombreCompleto", e.target.value)}
+          placeholder="Nombre y apellido"
+          style={campoLogin}
+        />
+
+        <label style={{ ...etiquetaCampo, marginTop: 12 }}>Profesión / especialidad</label>
+        <input
+          value={datos.profesion}
+          onChange={(e) => campo("profesion", e.target.value)}
+          placeholder="Opcional — ej. Psicólogo(a) clínico(a)"
+          style={campoLogin}
+        />
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 12 }}>
+          <div>
+            <label style={etiquetaCampo}>Registro SIS</label>
+            <input
+              value={datos.registroSIS}
+              onChange={(e) => campo("registroSIS", e.target.value)}
+              placeholder="Opcional"
+              style={campoLogin}
+            />
+          </div>
+          <div>
+            <label style={etiquetaCampo}>Registro Mineduc</label>
+            <input
+              value={datos.registroMineduc}
+              onChange={(e) => campo("registroMineduc", e.target.value)}
+              placeholder="Opcional"
+              style={campoLogin}
+            />
+          </div>
+        </div>
+
+        <label style={{ ...etiquetaCampo, marginTop: 12 }}>Correo de contacto</label>
+        <input
+          type="email"
+          value={datos.correo}
+          onChange={(e) => campo("correo", e.target.value)}
+          placeholder="Opcional"
+          style={campoLogin}
+        />
+
+        {error && (
+          <p style={{ fontSize: 12, color: C.peligro, marginTop: 12, marginBottom: 0 }}>
+            {error}
+          </p>
+        )}
+
+        <div
+          style={{
+            marginTop: 20,
+            paddingTop: 16,
+            borderTop: `1px solid ${C.hair}`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <div>
+            <div style={{ fontSize: 13.5, color: C.ink }}>Modo noche</div>
+            <div style={{ fontSize: 11, color: C.inkSoft, marginTop: 2 }}>
+              Cambia los colores de la app. El lienzo no se ve afectado.
+            </div>
+          </div>
+          <Interruptor
+            activo={!!inicial.modoOscuro}
+            onClick={() => onCambiarModoOscuro(!inicial.modoOscuro)}
+          />
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 24 }}>
+          <button
+            className="nd-mini"
+            style={{ ...mini, padding: "9px 14px" }}
+            onClick={onCerrar}
+          >
+            Cancelar
+          </button>
+          <button
+            className="nd-btn"
+            onClick={guardar}
+            style={{ ...boton(true), padding: "9px 18px" }}
+          >
+            Guardar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ============ Inicio ============ */
 function Inicio({
   indice,
   profesional,
+  perfil,
   onSalir,
   onAbrir,
   onCrear,
   onRenombrar,
   onPersonalizar,
   onActualizarPaciente,
+  onGuardarPerfil,
+  onCambiarModoOscuro,
   onEliminar,
 }) {
   const [editando, setEditando] = useState(null);
   const [personalizando, setPersonalizando] = useState(null);
   const [creando, setCreando] = useState(false);
   const [viendoDatos, setViendoDatos] = useState(null);
+  const [mostrarPerfil, setMostrarPerfil] = useState(false);
 
   return (
     <div
-      className="nd"
+      className={`nd${perfil.modoOscuro ? " oscuro" : ""}`}
       style={{
         ...pantalla,
         display: "block",
-        background: FONDOS.bruma.bg,
+        background: "var(--nd-fondoApp)",
         overflowY: "auto",
         fontFamily: FONT,
         color: C.ink,
@@ -777,9 +1035,14 @@ function Inicio({
         >
           <Noddo tamano={19} sub="Visualización y memoria en psicoterapia" />
           <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-            <span style={{ fontSize: 12, color: C.inkSoft, marginRight: 4 }}>
-              {profesional}
-            </span>
+            <button
+              className="nd-mini"
+              style={{ ...mini, fontSize: 12, color: C.inkSoft }}
+              onClick={() => setMostrarPerfil(true)}
+              title="Perfil profesional"
+            >
+              {perfil.nombreCompleto || profesional}
+            </button>
             <button className="nd-mini" style={mini} onClick={onSalir}>
               Cerrar sesión
             </button>
@@ -1103,6 +1366,18 @@ function Inicio({
           onGuardar={(datos) => {
             onActualizarPaciente(viendoDatos, datos);
             setViendoDatos(null);
+          }}
+        />
+      )}
+
+      {mostrarPerfil && (
+        <ModalPerfil
+          inicial={perfil}
+          onCambiarModoOscuro={onCambiarModoOscuro}
+          onCerrar={() => setMostrarPerfil(false)}
+          onGuardar={(datos) => {
+            onGuardarPerfil(datos);
+            setMostrarPerfil(false);
           }}
         />
       )}
@@ -2218,7 +2493,9 @@ const boton = (activo, fs = 12.5) => ({
   cursor: "pointer",
   border: `1px solid ${activo ? C.ink : C.borde}`,
   background: activo ? C.ink : "transparent",
-  color: activo ? "#fff" : C.inkSoft,
+  // C.panel es blanco en modo claro y oscuro en modo noche: siempre da
+  // buen contraste contra el fondo C.ink del botón activo, en ambos temas.
+  color: activo ? C.panel : C.inkSoft,
 });
 
 const svgCapa = {
