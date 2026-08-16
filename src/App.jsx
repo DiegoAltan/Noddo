@@ -139,6 +139,16 @@ function patronLienzo(estilo, k = 1) {
   // píxel, cada baldosa puede redondearse distinto al pintarse y las
   // formas se desalinean levemente de una baldosa a la siguiente.
   const tEntero = (px) => Math.round(px * k);
+  // Raya diagonal con un borde suavizado de 1px: un repeating-linear-gradient
+  // con corte 100% afilado en diagonal hace que el navegador "puntee" la
+  // línea en vez de dibujarla continua en ciertos niveles de zoom (moiré de
+  // rasterización). Un pixel de transición alcanza para que antialise bien
+  // y sigue viéndose nítido.
+  const rayaDiagonal = (angulo, grosorPx, periodoPx) => {
+    const grosor = tEntero(grosorPx);
+    const periodo = tEntero(periodoPx);
+    return `repeating-linear-gradient(${angulo}, transparent 0, ${color}4d 1px, ${color}4d ${grosor}px, transparent ${grosor + 1}px, transparent ${periodo}px)`;
+  };
   switch (patron) {
     case "puntos":
       return {
@@ -147,7 +157,7 @@ function patronLienzo(estilo, k = 1) {
       };
     case "diagonales":
       return {
-        backgroundImage: `repeating-linear-gradient(45deg, ${color}4d 0, ${color}4d ${t(3)}px, transparent ${t(3)}px, transparent ${t(30)}px)`,
+        backgroundImage: rayaDiagonal("45deg", 3, 30),
       };
     case "cuadricula":
       return {
@@ -156,11 +166,11 @@ function patronLienzo(estilo, k = 1) {
         // redondear su ancho fraccionario (por el zoom) de forma independiente,
         // desalineando las líneas entre baldosas. El gradiente repetido se
         // calcula de forma continua, así las líneas quedan siempre rectas.
-        backgroundImage: `repeating-linear-gradient(to bottom, ${color}4d 0, ${color}4d ${t(1.4)}px, transparent ${t(1.4)}px, transparent ${t(30)}px), repeating-linear-gradient(to right, ${color}4d 0, ${color}4d ${t(1.4)}px, transparent ${t(1.4)}px, transparent ${t(30)}px)`,
+        backgroundImage: `repeating-linear-gradient(to bottom, ${color}4d 0, ${color}4d ${tEntero(1.4)}px, transparent ${tEntero(1.4)}px, transparent ${tEntero(30)}px), repeating-linear-gradient(to right, ${color}4d 0, ${color}4d ${tEntero(1.4)}px, transparent ${tEntero(1.4)}px, transparent ${tEntero(30)}px)`,
       };
     case "rombos":
       return {
-        backgroundImage: `repeating-linear-gradient(45deg, ${color}4d 0, ${color}4d ${t(2.4)}px, transparent ${t(2.4)}px, transparent ${t(26)}px), repeating-linear-gradient(-45deg, ${color}4d 0, ${color}4d ${t(2.4)}px, transparent ${t(2.4)}px, transparent ${t(26)}px)`,
+        backgroundImage: `${rayaDiagonal("45deg", 2.4, 26)}, ${rayaDiagonal("-45deg", 2.4, 26)}`,
       };
     case "confeti":
       return {
