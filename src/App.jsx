@@ -120,8 +120,9 @@ function mezclarConBlanco(hex, factorColor) {
   return `#${mezclar(r)}${mezclar(g)}${mezclar(b)}`;
 }
 
-// Fondos pálidos para los botones de acción con color de la barra del nodo.
-const AMBAR_CLARO = C.foco;
+// Fondos pálidos para los botones de acción con color de la barra del nodo,
+// todos con la misma intensidad suave (mismo factor de mezcla con blanco).
+const AMBAR_CLARO = mezclarConBlanco(C.foco, 0.16);
 const AZUL_CLARO = C.tarea;
 const PELIGRO_CLARO = mezclarConBlanco(C.peligro, 0.16);
 const VERDE_CLARO = mezclarConBlanco(C.done, 0.16);
