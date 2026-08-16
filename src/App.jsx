@@ -645,6 +645,7 @@ function Inicio({
               marginTop: 22,
               display: "grid",
               gridTemplateColumns: "repeat(auto-fill, minmax(196px, 1fr))",
+              alignItems: "start",
               gap: 10,
             }}
           >
