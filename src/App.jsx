@@ -135,11 +135,15 @@ function patronLienzo(estilo, k = 1) {
   const color = COLORES_TARJETA[estilo?.color] || COLORES_TARJETA.bruma;
   const patron = estilo?.patron || "plano";
   const t = (px) => px * k;
+  // background-size en px enteros: si el mosaico mide una fracción de
+  // píxel, cada baldosa puede redondearse distinto al pintarse y las
+  // formas se desalinean levemente de una baldosa a la siguiente.
+  const tEntero = (px) => Math.round(px * k);
   switch (patron) {
     case "puntos":
       return {
         backgroundImage: `radial-gradient(${color}66 ${t(1.8)}px, transparent ${t(1.8)}px)`,
-        backgroundSize: `${t(30)}px ${t(30)}px`,
+        backgroundSize: `${tEntero(30)}px ${tEntero(30)}px`,
       };
     case "diagonales":
       return {
@@ -147,8 +151,12 @@ function patronLienzo(estilo, k = 1) {
       };
     case "cuadricula":
       return {
-        backgroundImage: `linear-gradient(${color}4d ${t(1.4)}px, transparent ${t(1.4)}px), linear-gradient(90deg, ${color}4d ${t(1.4)}px, transparent ${t(1.4)}px)`,
-        backgroundSize: `${t(30)}px ${t(30)}px`,
+        // repeating-linear-gradient en vez de linear-gradient + background-size:
+        // este último tilea una imagen rasterizada y cada baldosa puede
+        // redondear su ancho fraccionario (por el zoom) de forma independiente,
+        // desalineando las líneas entre baldosas. El gradiente repetido se
+        // calcula de forma continua, así las líneas quedan siempre rectas.
+        backgroundImage: `repeating-linear-gradient(to bottom, ${color}4d 0, ${color}4d ${t(1.4)}px, transparent ${t(1.4)}px, transparent ${t(30)}px), repeating-linear-gradient(to right, ${color}4d 0, ${color}4d ${t(1.4)}px, transparent ${t(1.4)}px, transparent ${t(30)}px)`,
       };
     case "rombos":
       return {
@@ -163,7 +171,7 @@ function patronLienzo(estilo, k = 1) {
           `radial-gradient(circle at ${t(20)}px ${t(52)}px, ${color}66 ${t(1.8)}px, transparent ${t(2.2)}px)`,
           `radial-gradient(circle at ${t(48)}px ${t(62)}px, ${color}66 ${t(1.5)}px, transparent ${t(1.9)}px)`,
         ].join(", "),
-        backgroundSize: `${t(72)}px ${t(72)}px`,
+        backgroundSize: `${tEntero(72)}px ${tEntero(72)}px`,
       };
     case "plano":
     default:
