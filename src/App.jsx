@@ -41,6 +41,7 @@ const TIPOS = [
   ["acompanamiento", "Acompañamiento"],
   ["titulo", "Título"],
 ];
+const TIPOS_ABREV = { central: "Ct", acompanamiento: "Ac", titulo: "Tt" };
 
 /* ============ Personalización de tarjetas ============ */
 const COLORES_TARJETA = {
@@ -118,6 +119,12 @@ function mezclarConBlanco(hex, factorColor) {
   const mezclar = (c) => Math.round(c * factorColor + 255 * (1 - factorColor)).toString(16).padStart(2, "0");
   return `#${mezclar(r)}${mezclar(g)}${mezclar(b)}`;
 }
+
+// Fondos pálidos para los botones de acción con color de la barra del nodo.
+const AMBAR_CLARO = C.foco;
+const AZUL_CLARO = C.tarea;
+const PELIGRO_CLARO = mezclarConBlanco(C.peligro, 0.16);
+const VERDE_CLARO = mezclarConBlanco(C.done, 0.16);
 
 // Tinte pálido y opaco del color elegido: la "hoja de papel" del lienzo.
 function colorFondoLienzo(estilo) {
@@ -1363,6 +1370,43 @@ function Inicio({
   );
 }
 
+/* ============ Botón de acción con color (barra del nodo) ============ */
+function BotonAccionColor({ onClick, titulo, bg, color, children }) {
+  return (
+    <button
+      title={titulo}
+      aria-label={titulo}
+      onClick={onClick}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: 28,
+        height: 28,
+        padding: 0,
+        border: "none",
+        borderRadius: 7,
+        background: bg,
+        color,
+        cursor: "pointer",
+      }}
+    >
+      <svg
+        width="15"
+        height="15"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        {children}
+      </svg>
+    </button>
+  );
+}
+
 /* ============ Editor ============ */
 function Editor({ id, nombre, estilo, onCambiarEstilo, onInicio, onResumen }) {
   const [nodos, setNodos] = useState([]);
@@ -1857,28 +1901,38 @@ function Editor({ id, nombre, estilo, onCambiarEstilo, onInicio, onResumen }) {
               boxShadow: "0 10px 26px -12px rgba(22,50,63,.45)",
             }}
           >
-            <button
-              className="nd-mini"
-              style={mini}
+            <BotonAccionColor
+              titulo="Escribir"
+              bg={AMBAR_CLARO}
+              color={C.focoTexto}
               onClick={() => {
                 registrarHistoria();
                 setEditando(nodoSel.id);
               }}
             >
-              Escribir
-            </button>
+              <path d="M4.5 19.5l1-4L15 6l3 3-9.5 9.5-4 1z" />
+              <path d="M13 8l3 3" />
+            </BotonAccionColor>
             {nodoSel.tipo !== "titulo" && (
-              <button
-                className="nd-mini"
-                style={mini}
+              <BotonAccionColor
+                titulo="Agregar tarea"
+                bg={AZUL_CLARO}
+                color={C.tareaTexto}
                 onClick={() => setNuevaTarea(nodoSel.id)}
               >
-                + Tarea
-              </button>
+                <rect x="4.5" y="4.5" width="15" height="15" rx="3" />
+                <path d="M8 12l2.5 2.5L16 9" />
+              </BotonAccionColor>
             )}
-            <button className="nd-mini" style={mini} onClick={duplicar}>
-              Duplicar
-            </button>
+            <BotonAccionColor
+              titulo="Duplicar"
+              bg={VERDE_CLARO}
+              color={C.done}
+              onClick={duplicar}
+            >
+              <rect x="4" y="4" width="13" height="13" rx="2.5" />
+              <path d="M9 17v2a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2h-2" />
+            </BotonAccionColor>
             <span style={separador} />
             {TIPOS.map(([k, label]) => (
               <button
@@ -1889,22 +1943,28 @@ function Editor({ id, nombre, estilo, onCambiarEstilo, onInicio, onResumen }) {
                   color: nodoSel.tipo === k ? C.ink : C.inkSoft,
                   background: nodoSel.tipo === k ? C.hair : "transparent",
                 }}
+                title={label}
                 onClick={() => {
                   if (nodoSel.tipo !== k) registrarHistoria();
                   actualizar(nodoSel.id, { tipo: k });
                 }}
               >
-                {label}
+                {TIPOS_ABREV[k]}
               </button>
             ))}
             <span style={separador} />
-            <button
-              className="nd-mini"
-              style={{ ...mini, color: C.peligro }}
+            <BotonAccionColor
+              titulo="Eliminar"
+              bg={PELIGRO_CLARO}
+              color={C.peligro}
               onClick={() => eliminar(nodoSel.id)}
             >
-              Eliminar
-            </button>
+              <path d="M5 7h14" />
+              <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+              <path d="M7 7l1 12a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1l1-12" />
+              <line x1="10" y1="11" x2="10" y2="16" />
+              <line x1="14" y1="11" x2="14" y2="16" />
+            </BotonAccionColor>
           </div>
         )}
       </div>
@@ -2407,6 +2467,7 @@ function Nodo({
               }}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
+                  e.stopPropagation();
                   onNuevaTarea(borrador);
                   setBorrador("");
                 }
