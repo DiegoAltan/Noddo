@@ -11,23 +11,17 @@ const FONDOS = {
   cielo: { nombre: "Cielo", bg: "#E5EEF3", grid: "#C6DAE6", tinte: "#173442" },
 };
 
-/*
- * ink/inkSoft/inkTenue/hair/panel/line/borde/fondoApp apuntan a variables CSS
- * (definidas en CSS más abajo) para poder invertirlas en modo noche sin tocar
- * cada uso. El editor del lienzo nunca recibe la clase "oscuro" en su raíz,
- * así que ahí siempre resuelven a los valores claros de por defecto.
- */
 const C = {
-  ink: "var(--nd-ink)",
-  inkSoft: "var(--nd-inkSoft)",
-  inkTenue: "var(--nd-inkTenue)",
-  hair: "var(--nd-hair)",
-  panel: "var(--nd-panel)",
-  line: "var(--nd-line)",
+  ink: "#16323F",
+  inkSoft: "#61787F",
+  inkTenue: "#8FA3AB",
+  hair: "#E2E9EC",
+  panel: "#FFFFFF",
+  line: "#9BB0B9",
   foco: "#D2A03C",
   focoTexto: "#8A6414",
   done: "#3F7A5C",
-  borde: "var(--nd-borde)",
+  borde: "#C4D1D7",
   tarea: "#E3F0F7",
   tareaBorde: "#BFDCEA",
   tareaTexto: "#1B4A63",
@@ -129,7 +123,6 @@ const PERFIL_VACIO = {
   registroSIS: "",
   registroMineduc: "",
   correo: "",
-  modoOscuro: false,
 };
 
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -209,26 +202,6 @@ function bordeCaja(cx, cy, w, h, tx, ty) {
 
 /* ============ Estilos globales ============ */
 const CSS = `
-.nd {
-  --nd-ink: #16323F;
-  --nd-inkSoft: #61787F;
-  --nd-inkTenue: #8FA3AB;
-  --nd-hair: #E2E9EC;
-  --nd-panel: #FFFFFF;
-  --nd-line: #9BB0B9;
-  --nd-borde: #C4D1D7;
-  --nd-fondoApp: #E9EEF0;
-}
-.nd.oscuro {
-  --nd-ink: #E7EDF0;
-  --nd-inkSoft: #A9B8BE;
-  --nd-inkTenue: #6F8189;
-  --nd-hair: #2A3B42;
-  --nd-panel: #1B282E;
-  --nd-line: #4A5D64;
-  --nd-borde: #3A4D54;
-  --nd-fondoApp: #10191D;
-}
 .nd * { box-sizing: border-box; }
 .nd-btn { transition: background .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease; }
 .nd-btn:hover { border-color: ${C.inkTenue}; color: ${C.ink}; }
@@ -292,12 +265,9 @@ function Noddo({ tamano = 15, onClick, sub }) {
 }
 
 /* ============ Raíz ============ */
-function Splash({ modoOscuro }) {
+function Splash() {
   return (
-    <div
-      style={{ ...pantalla, background: "var(--nd-fondoApp)" }}
-      className={`nd${modoOscuro ? " oscuro" : ""}`}
-    >
+    <div style={{ ...pantalla, background: FONDOS.bruma.bg }} className="nd">
       <style>{CSS}</style>
       <div style={{ margin: "auto", opacity: 0.5 }}>
         <Noddo tamano={16} />
@@ -340,12 +310,6 @@ export default function App() {
   const guardarPerfil = async (datos) => {
     await escribir(K_PERFIL, datos);
     setPerfil(datos);
-  };
-
-  const cambiarModoOscuro = async (valor) => {
-    const nuevo = { ...(perfil || PERFIL_VACIO), modoOscuro: valor };
-    await escribir(K_PERFIL, nuevo);
-    setPerfil(nuevo);
   };
 
   useEffect(() => {
@@ -407,8 +371,8 @@ export default function App() {
   };
 
   if (sesion === undefined || perfil === undefined) return <Splash />;
-  if (!sesion) return <Login onEntrar={entrar} modoOscuro={perfil.modoOscuro} />;
-  if (indice === null) return <Splash modoOscuro={perfil.modoOscuro} />;
+  if (!sesion) return <Login onEntrar={entrar} />;
+  if (indice === null) return <Splash />;
 
   if (abierto)
     return (
@@ -431,7 +395,6 @@ export default function App() {
       profesional={sesion.nombre}
       perfil={perfil}
       onGuardarPerfil={guardarPerfil}
-      onCambiarModoOscuro={cambiarModoOscuro}
       onSalir={salir}
       onAbrir={setAbierto}
       onCrear={async (datosPaciente) => {
@@ -485,7 +448,7 @@ export default function App() {
 }
 
 /* ============ Login ============ */
-function Login({ onEntrar, modoOscuro }) {
+function Login({ onEntrar }) {
   const [nombre, setNombre] = useState("");
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
@@ -499,10 +462,10 @@ function Login({ onEntrar, modoOscuro }) {
 
   return (
     <div
-      className={`nd${modoOscuro ? " oscuro" : ""}`}
+      className="nd"
       style={{
         ...pantalla,
-        background: "var(--nd-fondoApp)",
+        background: FONDOS.bruma.bg,
         fontFamily: FONT,
         color: C.ink,
         alignItems: "center",
@@ -795,43 +758,8 @@ function ModalPaciente({ titulo, inicial, onGuardar, onCerrar }) {
   );
 }
 
-/* ============ Interruptor ============ */
-function Interruptor({ activo, onClick }) {
-  return (
-    <button
-      onClick={onClick}
-      role="switch"
-      aria-checked={activo}
-      style={{
-        width: 40,
-        height: 22,
-        borderRadius: 999,
-        border: "none",
-        padding: 2,
-        cursor: "pointer",
-        background: activo ? C.ink : C.borde,
-        display: "flex",
-        justifyContent: activo ? "flex-end" : "flex-start",
-        flexShrink: 0,
-        transition: "background .15s ease",
-      }}
-    >
-      <span
-        style={{
-          width: 18,
-          height: 18,
-          borderRadius: "50%",
-          background: C.panel,
-          display: "block",
-          boxShadow: "0 1px 3px rgba(0,0,0,.35)",
-        }}
-      />
-    </button>
-  );
-}
-
 /* ============ Modal: perfil profesional ============ */
-function ModalPerfil({ inicial, onGuardar, onCerrar, onCambiarModoOscuro }) {
+function ModalPerfil({ inicial, onGuardar, onCerrar }) {
   const [datos, setDatos] = useState(inicial);
   const [error, setError] = useState("");
 
@@ -843,13 +771,7 @@ function ModalPerfil({ inicial, onGuardar, onCerrar, onCambiarModoOscuro }) {
   const guardar = () => {
     if (!datos.nombreCompleto.trim())
       return setError("El nombre completo del profesional es obligatorio.");
-    onGuardar({
-      ...datos,
-      nombreCompleto: datos.nombreCompleto.trim(),
-      // el modo noche se guarda al instante al tocar el interruptor; nunca
-      // pisar ese valor vigente con la copia que quedó al abrir el modal.
-      modoOscuro: inicial.modoOscuro,
-    });
+    onGuardar({ ...datos, nombreCompleto: datos.nombreCompleto.trim() });
   };
 
   return (
@@ -946,28 +868,6 @@ function ModalPerfil({ inicial, onGuardar, onCerrar, onCambiarModoOscuro }) {
           </p>
         )}
 
-        <div
-          style={{
-            marginTop: 20,
-            paddingTop: 16,
-            borderTop: `1px solid ${C.hair}`,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <div>
-            <div style={{ fontSize: 13.5, color: C.ink }}>Modo noche</div>
-            <div style={{ fontSize: 11, color: C.inkSoft, marginTop: 2 }}>
-              Cambia los colores de la app. El lienzo no se ve afectado.
-            </div>
-          </div>
-          <Interruptor
-            activo={!!inicial.modoOscuro}
-            onClick={() => onCambiarModoOscuro(!inicial.modoOscuro)}
-          />
-        </div>
-
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 24 }}>
           <button
             className="nd-mini"
@@ -1001,7 +901,6 @@ function Inicio({
   onPersonalizar,
   onActualizarPaciente,
   onGuardarPerfil,
-  onCambiarModoOscuro,
   onEliminar,
 }) {
   const [editando, setEditando] = useState(null);
@@ -1012,11 +911,11 @@ function Inicio({
 
   return (
     <div
-      className={`nd${perfil.modoOscuro ? " oscuro" : ""}`}
+      className="nd"
       style={{
         ...pantalla,
         display: "block",
-        background: "var(--nd-fondoApp)",
+        background: FONDOS.bruma.bg,
         overflowY: "auto",
         fontFamily: FONT,
         color: C.ink,
@@ -1373,7 +1272,6 @@ function Inicio({
       {mostrarPerfil && (
         <ModalPerfil
           inicial={perfil}
-          onCambiarModoOscuro={onCambiarModoOscuro}
           onCerrar={() => setMostrarPerfil(false)}
           onGuardar={(datos) => {
             onGuardarPerfil(datos);
@@ -2493,8 +2391,6 @@ const boton = (activo, fs = 12.5) => ({
   cursor: "pointer",
   border: `1px solid ${activo ? C.ink : C.borde}`,
   background: activo ? C.ink : "transparent",
-  // C.panel es blanco en modo claro y oscuro en modo noche: siempre da
-  // buen contraste contra el fondo C.ink del botón activo, en ambos temas.
   color: activo ? C.panel : C.inkSoft,
 });
 
