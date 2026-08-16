@@ -119,6 +119,50 @@ const K_CONTADOR = "noddo:contador";
 const uid = () => Math.random().toString(36).slice(2, 9);
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 
+const hoyISO = () => new Date().toISOString().slice(0, 10);
+const fechaISOde = (ms) => (ms ? new Date(ms).toISOString().slice(0, 10) : hoyISO());
+
+function calcularEdad(fechaNacISO) {
+  if (!fechaNacISO) return "";
+  const nacimiento = new Date(fechaNacISO + "T00:00:00");
+  if (Number.isNaN(nacimiento.getTime())) return "";
+  const hoy = new Date();
+  let edad = hoy.getFullYear() - nacimiento.getFullYear();
+  const m = hoy.getMonth() - nacimiento.getMonth();
+  if (m < 0 || (m === 0 && hoy.getDate() < nacimiento.getDate())) edad--;
+  return edad >= 0 ? edad : "";
+}
+
+const datosPacienteVacios = () => ({
+  nombreCompleto: "",
+  alias: "",
+  fechaNacimiento: "",
+  edad: "",
+  correo: "",
+  fechaInicio: hoyISO(),
+});
+
+function datosPacienteDe(l) {
+  if (l?.paciente) {
+    return {
+      nombreCompleto: l.paciente.nombreCompleto || l.nombre || "",
+      alias: l.paciente.alias || "",
+      fechaNacimiento: l.paciente.fechaNacimiento || "",
+      edad: l.paciente.edad || "",
+      correo: l.paciente.correo || "",
+      fechaInicio: l.paciente.fechaInicio || fechaISOde(l.fecha),
+    };
+  }
+  return {
+    nombreCompleto: l?.nombre || "",
+    alias: "",
+    fechaNacimiento: "",
+    edad: "",
+    correo: "",
+    fechaInicio: fechaISOde(l?.fecha),
+  };
+}
+
 const leer = async (k) => {
   try {
     const r = await window.storage.get(k);
@@ -329,7 +373,7 @@ export default function App() {
       profesional={sesion.nombre}
       onSalir={salir}
       onAbrir={setAbierto}
-      onCrear={async (nombre) => {
+      onCrear={async (datosPaciente) => {
         const id = uid();
         const numero = ((await leer(K_CONTADOR)) || 0) + 1;
         await escribir(K_CONTADOR, numero);
@@ -343,12 +387,13 @@ export default function App() {
         await actualizarIndice([
           {
             id,
-            nombre,
+            nombre: datosPaciente.alias || datosPaciente.nombreCompleto,
             nodos: 0,
             sesion: 1,
             fecha: Date.now(),
             numero,
             estilo: ESTILO_TARJETA_POR_DEFECTO,
+            paciente: datosPaciente,
           },
           ...indice,
         ]);
@@ -359,6 +404,19 @@ export default function App() {
       }
       onPersonalizar={(id, estilo) =>
         actualizarIndice(indice.map((l) => (l.id === id ? { ...l, estilo } : l)))
+      }
+      onActualizarPaciente={(id, datosPaciente) =>
+        actualizarIndice(
+          indice.map((l) =>
+            l.id === id
+              ? {
+                  ...l,
+                  paciente: datosPaciente,
+                  nombre: datosPaciente.alias || datosPaciente.nombreCompleto,
+                }
+              : l
+          )
+        )
       }
       onEliminar={(id) => actualizarIndice(indice.filter((l) => l.id !== id))}
     />
@@ -514,6 +572,169 @@ function BotonIcono({ onClick, titulo, color, children }) {
   );
 }
 
+/* ============ Modal: datos del paciente ============ */
+function ModalPaciente({ titulo, inicial, onGuardar, onCerrar }) {
+  const [datos, setDatos] = useState(inicial);
+  const [error, setError] = useState("");
+
+  const campo = (clave, valor) => {
+    setError("");
+    setDatos((d) => ({ ...d, [clave]: valor }));
+  };
+
+  const cambiarNacimiento = (valor) => {
+    setError("");
+    setDatos((d) => ({
+      ...d,
+      fechaNacimiento: valor,
+      edad: valor ? calcularEdad(valor) : d.edad,
+    }));
+  };
+
+  const guardar = () => {
+    if (!datos.nombreCompleto.trim()) return setError("El nombre completo es obligatorio.");
+    onGuardar({
+      ...datos,
+      nombreCompleto: datos.nombreCompleto.trim(),
+      alias: datos.alias.trim(),
+    });
+  };
+
+  return (
+    <div
+      onClick={onCerrar}
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(22,50,63,.4)",
+        backdropFilter: "blur(2px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 100,
+        padding: 20,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="nd"
+        style={{
+          width: "min(420px, 100%)",
+          background: C.panel,
+          borderRadius: 16,
+          padding: "28px 28px 24px",
+          boxShadow: "0 30px 70px -20px rgba(22,50,63,.5)",
+          fontFamily: FONT,
+          color: C.ink,
+          maxHeight: "90vh",
+          overflowY: "auto",
+        }}
+      >
+        <style>{CSS}</style>
+        <h2
+          style={{
+            fontFamily: SERIF,
+            fontSize: 21,
+            fontWeight: 400,
+            margin: "0 0 20px",
+          }}
+        >
+          {titulo}
+        </h2>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div>
+            <label style={etiquetaCampo}>Nombre completo</label>
+            <input
+              autoFocus
+              value={datos.nombreCompleto}
+              onChange={(e) => campo("nombreCompleto", e.target.value)}
+              placeholder="Nombre y apellido"
+              style={campoLogin}
+            />
+          </div>
+          <div>
+            <label style={etiquetaCampo}>Alias</label>
+            <input
+              value={datos.alias}
+              onChange={(e) => campo("alias", e.target.value)}
+              placeholder="Opcional"
+              style={campoLogin}
+            />
+          </div>
+
+          <div>
+            <label style={etiquetaCampo}>Fecha de nacimiento</label>
+            <input
+              type="date"
+              value={datos.fechaNacimiento}
+              onChange={(e) => cambiarNacimiento(e.target.value)}
+              style={campoLogin}
+            />
+          </div>
+          <div>
+            <label style={etiquetaCampo}>Edad</label>
+            <input
+              type="number"
+              min={0}
+              max={120}
+              value={datos.edad}
+              disabled={!!datos.fechaNacimiento}
+              onChange={(e) => campo("edad", e.target.value)}
+              placeholder="Opcional"
+              style={{ ...campoLogin, opacity: datos.fechaNacimiento ? 0.55 : 1 }}
+            />
+          </div>
+        </div>
+
+        <div style={{ marginTop: 12 }}>
+          <label style={etiquetaCampo}>Correo</label>
+          <input
+            type="email"
+            value={datos.correo}
+            onChange={(e) => campo("correo", e.target.value)}
+            placeholder="Opcional"
+            style={campoLogin}
+          />
+        </div>
+
+        <div style={{ marginTop: 12 }}>
+          <label style={etiquetaCampo}>Fecha de inicio</label>
+          <input
+            type="date"
+            value={datos.fechaInicio}
+            onChange={(e) => campo("fechaInicio", e.target.value)}
+            style={campoLogin}
+          />
+        </div>
+
+        {error && (
+          <p style={{ fontSize: 12, color: C.peligro, marginTop: 12, marginBottom: 0 }}>
+            {error}
+          </p>
+        )}
+
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 24 }}>
+          <button
+            className="nd-mini"
+            style={{ ...mini, padding: "9px 14px" }}
+            onClick={onCerrar}
+          >
+            Cancelar
+          </button>
+          <button
+            className="nd-btn"
+            onClick={guardar}
+            style={{ ...boton(true), padding: "9px 18px" }}
+          >
+            Guardar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ============ Inicio ============ */
 function Inicio({
   indice,
@@ -523,11 +744,13 @@ function Inicio({
   onCrear,
   onRenombrar,
   onPersonalizar,
+  onActualizarPaciente,
   onEliminar,
 }) {
-  const [nuevo, setNuevo] = useState("");
   const [editando, setEditando] = useState(null);
   const [personalizando, setPersonalizando] = useState(null);
+  const [creando, setCreando] = useState(false);
+  const [viendoDatos, setViendoDatos] = useState(null);
 
   return (
     <div
@@ -584,40 +807,13 @@ function Inicio({
           >
             Lienzos
           </h1>
-          <div style={{ display: "flex", gap: 8 }}>
-            <input
-              value={nuevo}
-              onChange={(e) => setNuevo(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && nuevo.trim()) {
-                  onCrear(nuevo.trim());
-                  setNuevo("");
-                }
-              }}
-              placeholder="Nombre o código del consultante"
-              style={{
-                fontFamily: FONT,
-                fontSize: 13,
-                padding: "10px 12px",
-                width: 240,
-                border: `1px solid ${C.borde}`,
-                borderRadius: 8,
-                background: C.panel,
-                color: C.ink,
-              }}
-            />
-            <button
-              className="nd-btn"
-              onClick={() => {
-                if (!nuevo.trim()) return;
-                onCrear(nuevo.trim());
-                setNuevo("");
-              }}
-              style={{ ...boton(true), padding: "10px 16px" }}
-            >
-              Nuevo lienzo
-            </button>
-          </div>
+          <button
+            className="nd-btn"
+            onClick={() => setCreando(true)}
+            style={{ ...boton(true), padding: "10px 16px" }}
+          >
+            Agregar paciente
+          </button>
         </div>
 
         {indice.length === 0 ? (
@@ -753,6 +949,19 @@ function Inicio({
                       }}
                     >
                       <BotonIcono
+                        titulo="Datos del paciente"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setViendoDatos(l.id);
+                        }}
+                      >
+                        <rect x="3.5" y="5" width="17" height="14" rx="2.5" />
+                        <circle cx="9" cy="11" r="2.1" />
+                        <path d="M6 16c.6-1.8 2-2.6 3-2.6s2.4.8 3 2.6" />
+                        <line x1="14.5" y1="9.5" x2="17.5" y2="9.5" />
+                        <line x1="14.5" y1="12.5" x2="17.5" y2="12.5" />
+                      </BotonIcono>
+                      <BotonIcono
                         titulo="Renombrar"
                         onClick={(e) => {
                           e.stopPropagation();
@@ -873,6 +1082,30 @@ function Inicio({
           </div>
         )}
       </div>
+
+      {creando && (
+        <ModalPaciente
+          titulo="Nuevo paciente"
+          inicial={datosPacienteVacios()}
+          onCerrar={() => setCreando(false)}
+          onGuardar={(datos) => {
+            onCrear(datos);
+            setCreando(false);
+          }}
+        />
+      )}
+
+      {viendoDatos && (
+        <ModalPaciente
+          titulo="Datos del paciente"
+          inicial={datosPacienteDe(indice.find((l) => l.id === viendoDatos))}
+          onCerrar={() => setViendoDatos(null)}
+          onGuardar={(datos) => {
+            onActualizarPaciente(viendoDatos, datos);
+            setViendoDatos(null);
+          }}
+        />
+      )}
     </div>
   );
 }
