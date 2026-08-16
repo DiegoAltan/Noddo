@@ -55,6 +55,20 @@ const COLORES_TARJETA = {
   ocre: "#D9A24B",
 };
 
+// Mismos tonos que COLORES_TARJETA pero más saturados: para acentos chicos
+// (la franja de color de un nodo) el pastel se pierde, así que aquí van
+// versiones con más "punch" mantieniendo la misma familia de color.
+const COLORES_NODO = {
+  bruma: "#3E6E88",
+  salvia: "#4C9257",
+  arena: "#C6842E",
+  lavanda: "#7C5CB8",
+  rosa: "#D65C56",
+  cielo: "#2A82C4",
+  musgo: "#43713A",
+  ocre: "#D1841F",
+};
+
 const PATRONES = [
   { id: "plano", nombre: "Plano" },
   { id: "puntos", nombre: "Puntos" },
@@ -2041,7 +2055,7 @@ function Editor({ id, nombre, estilo, onCambiarEstilo, onInicio, onResumen }) {
                     boxShadow: !nodoSel.color ? `0 0 0 2px ${C.panel} inset` : "none",
                   }}
                 />
-                {Object.entries(COLORES_TARJETA).map(([k, hex]) => (
+                {Object.entries(COLORES_NODO).map(([k, hex]) => (
                   <button
                     key={k}
                     title={k}
@@ -2391,7 +2405,7 @@ function Nodo({
 
   const central = n.tipo === "central";
   const titulo = n.tipo === "titulo";
-  const colorHex = n.color ? COLORES_TARJETA[n.color] : null;
+  const colorHex = n.color ? COLORES_NODO[n.color] : null;
 
   const anillo = n.foco
     ? `inset 0 0 0 2px ${C.foco}`
@@ -2444,19 +2458,6 @@ function Nodo({
             bottom: 0,
             width: 4,
             background: colorHex,
-          }}
-        />
-      )}
-      {!titulo && !central && (
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            right: 0,
-            width: 15,
-            height: 15,
-            background: "linear-gradient(135deg, transparent 50%, rgba(22,50,63,.1) 50%)",
-            pointerEvents: "none",
           }}
         />
       )}
