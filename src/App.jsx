@@ -2157,28 +2157,48 @@ function Editor({ id, nombre, estilo, onCambiarEstilo, onInicio, onResumen }) {
             Exportar
           </Dock>
 
-          <div style={sesionCaja}>
+          <div style={sesionCaja} title={`Sesión ${sesion}`}>
             <button
               className="nd-mini"
               style={sesionBtn}
               onClick={() => setSesion((s) => Math.max(1, s - 1))}
+              aria-label="Sesión anterior"
             >
               −
             </button>
             <span
               style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
                 fontSize: 12,
-                padding: "0 9px",
+                padding: "0 7px",
                 color: C.ink,
                 whiteSpace: "nowrap",
               }}
             >
-              Sesión {sesion}
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <rect x="4" y="5.5" width="16" height="15" rx="2" />
+                <line x1="4" y1="9.5" x2="20" y2="9.5" />
+                <line x1="8" y1="3.5" x2="8" y2="7" />
+                <line x1="16" y1="3.5" x2="16" y2="7" />
+              </svg>
+              {sesion}
             </span>
             <button
               className="nd-mini"
               style={sesionBtn}
               onClick={() => setSesion((s) => s + 1)}
+              aria-label="Sesión siguiente"
             >
               +
             </button>
@@ -2419,13 +2439,15 @@ function Dock({ children, activo, onClick, acento, icono, disabled }) {
       className={`nd-btn ${activo ? "on" : ""}`}
       onClick={disabled ? undefined : onClick}
       disabled={disabled}
+      title={children}
+      aria-label={children}
       style={{
         display: "flex",
         alignItems: "center",
-        gap: 7,
+        justifyContent: "center",
+        width: 36,
+        height: 36,
         fontFamily: FONT,
-        fontSize: 12,
-        padding: "8px 12px",
         borderRadius: 8,
         cursor: disabled ? "default" : "pointer",
         border: "1px solid transparent",
@@ -2435,8 +2457,8 @@ function Dock({ children, activo, onClick, acento, icono, disabled }) {
       }}
     >
       <svg
-        width="15"
-        height="15"
+        width="17"
+        height="17"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -2446,7 +2468,6 @@ function Dock({ children, activo, onClick, acento, icono, disabled }) {
       >
         {icono}
       </svg>
-      {children}
     </button>
   );
 }
