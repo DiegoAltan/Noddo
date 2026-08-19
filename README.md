@@ -12,12 +12,27 @@ npm run dev
 
 ## Estado actual
 
-- React + Vite, sin backend todavía.
-- La persistencia usa `src/storage.js`, un shim que hoy guarda en
-  `localStorage` del navegador. Cuando se conecte Supabase, esa es la única
-  pieza que hay que reemplazar (misma firma `get(key)` / `set(key, value)`).
+- React + Vite.
+- Autenticación y persistencia con Supabase: acceso de profesionales por
+  Google OAuth (invitación manual vía la tabla `profesionales_autorizados`),
+  lienzos/tareas guardados en Postgres con Row Level Security.
+- El acceso de consultante (RUT + código) todavía no está conectado — la
+  pantalla existe pero falta la Edge Function que lo valida (próxima etapa).
+- La migración de lienzos que quedaron en `localStorage` de sesiones
+  anteriores a Supabase todavía no está implementada (próxima etapa).
+
+## Configuración de Supabase
+
+1. Crea un proyecto en [supabase.com](https://supabase.com).
+2. Habilita el proveedor de Google en Authentication > Providers.
+3. Corre `supabase/migrations/0001_init.sql` en el editor SQL del proyecto.
+4. Agrega tu correo a `profesionales_autorizados` (estado `activo`).
+5. Copia `.env.example` a `.env.local` y completa `VITE_SUPABASE_URL` /
+   `VITE_SUPABASE_ANON_KEY` (la anon key es pública; la service key nunca
+   va en el cliente).
 
 ## Próximos pasos
 
-- Conectar Supabase (auth + base de datos) para persistencia real y multiusuario.
-- Deploy en Vercel.
+- Etapa 2: acceso de consultante (Edge Function RUT + código).
+- Etapa 3: importar a Supabase lo que haya quedado en `localStorage`.
+- Deploy en Vercel (agregar las mismas variables de entorno ahí).
