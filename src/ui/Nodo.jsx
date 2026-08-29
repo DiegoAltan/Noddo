@@ -1,6 +1,8 @@
 import { useRef, useState, useEffect } from "react";
 import { C, FONT, SERIF, W, NOTCH, COLORES_NODO } from "../estilos/tema.js";
 import { quitar } from "../estilos/compartidos.js";
+import { estiloTarjeta } from "../estilos/patrones.js";
+import { IconoSticker } from "./iconosSticker.jsx";
 
 /* ============ Nodo ============ */
 export default function Nodo({
@@ -20,6 +22,44 @@ export default function Nodo({
   const ref = useRef(null);
   const [borrador, setBorrador] = useState("");
   useEffect(() => medir(n.id, ref.current), [n.id, medir]);
+
+  if (n.tipo === "sticker") {
+    const tamano = n.tamano || 64;
+    return (
+      <div
+        className="nd-node"
+        onPointerDown={onPointerDown}
+        style={{
+          position: "absolute",
+          left: n.x,
+          top: n.y,
+          width: tamano,
+          height: tamano,
+          borderRadius: "50%",
+          cursor: "grab",
+          touchAction: "none",
+          userSelect: "none",
+          boxShadow: seleccionado
+            ? `inset 0 0 0 2px ${C.ink}, 0 6px 16px -10px rgba(22,50,63,.5)`
+            : "0 6px 16px -12px rgba(22,50,63,.45)",
+          ...estiloTarjeta({ patron: n.patron, color: n.color }),
+        }}
+      >
+        <IconoSticker
+          tipo={n.sticker}
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            width: tamano * 0.5,
+            height: tamano * 0.5,
+            transform: "translate(-50%, -50%)",
+            color: COLORES_NODO[n.color] || COLORES_NODO.bruma,
+          }}
+        />
+      </div>
+    );
+  }
 
   const central = n.tipo === "central";
   const titulo = n.tipo === "titulo";

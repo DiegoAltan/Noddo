@@ -25,6 +25,11 @@ import Noddo from "./Noddo.jsx";
 import Nodo from "./Nodo.jsx";
 import Dock from "./Dock.jsx";
 import BotonAccionColor from "./BotonAccionColor.jsx";
+import { STICKERS, IconoSticker } from "./iconosSticker.jsx";
+
+const STICKER_TAMANO_DEFECTO = 64;
+const STICKER_TAMANO_MIN = 32;
+const STICKER_TAMANO_MAX = 128;
 
 function bordeCaja(cx, cy, w, h, tx, ty) {
   const dx = tx - cx;
@@ -46,6 +51,7 @@ export default function Editor({ id, nombre, estilo, onCambiarEstilo, onInicio, 
   const [sel, setSel] = useState(null);
   const [modo, setModo] = useState("mover");
   const [tipoNuevo, setTipoNuevo] = useState("acompanamiento");
+  const [tipoStickerNuevo, setTipoStickerNuevo] = useState("corazon");
   const [alturas, setAlturas] = useState({});
   const [editando, setEditando] = useState(null);
   const [nuevaTarea, setNuevaTarea] = useState(null);
@@ -123,9 +129,11 @@ export default function Editor({ id, nombre, estilo, onCambiarEstilo, onInicio, 
     return () => ro.disconnect();
   }, []);
 
-  const anchoDe = (n) => W[n.tipo];
+  const anchoDe = (n) => (n.tipo === "sticker" ? n.tamano || STICKER_TAMANO_DEFECTO : W[n.tipo]);
   const altoDe = (n) =>
-    alturas[n.id] || (n.tipo === "central" ? 78 : n.tipo === "titulo" ? 34 : 60);
+    n.tipo === "sticker"
+      ? n.tamano || STICKER_TAMANO_DEFECTO
+      : alturas[n.id] || (n.tipo === "central" ? 78 : n.tipo === "titulo" ? 34 : 60);
   const centroDe = (n) => [n.x + anchoDe(n) / 2, n.y + altoDe(n) / 2];
   const aLienzo = (cx, cy) => {
     const r = areaRef.current.getBoundingClientRect();
@@ -181,6 +189,24 @@ export default function Editor({ id, nombre, estilo, onCambiarEstilo, onInicio, 
     setEditando(n.id);
   };
 
+  const crearSticker = (x, y, sticker) => {
+    registrarHistoria();
+    const tamano = STICKER_TAMANO_DEFECTO;
+    const n = {
+      id: uid(),
+      x: x - tamano / 2,
+      y: y - tamano / 2,
+      tipo: "sticker",
+      sticker,
+      tamano,
+      color: "rosa",
+      patron: "plano",
+      sesion,
+    };
+    setNodos((ns) => [...ns, n]);
+    setSel(n.id);
+  };
+
   const actualizar = (nid, campos) =>
     setNodos((ns) => ns.map((n) => (n.id === nid ? { ...n, ...campos } : n)));
 
@@ -200,7 +226,7 @@ export default function Editor({ id, nombre, estilo, onCambiarEstilo, onInicio, 
       id: uid(),
       x: n.x + 28,
       y: n.y + 28,
-      tareas: n.tareas.map((t) => ({ ...t, id: uid() })),
+      ...(n.tareas ? { tareas: n.tareas.map((t) => ({ ...t, id: uid() })) } : {}),
     };
     setNodos((ns) => [...ns, copia]);
     setSel(copia.id);
@@ -212,6 +238,8 @@ export default function Editor({ id, nombre, estilo, onCambiarEstilo, onInicio, 
     if (!a || !b || a.id === b.id) return;
     if (a.tipo === "titulo" || b.tipo === "titulo")
       return avisar("Los títulos no se conectan: nombran, no participan del mapa.");
+    if (a.tipo === "sticker" || b.tipo === "sticker")
+      return avisar("Los stickers son decorativos: no se conectan al mapa.");
     const rep = enlaces.some(
       (e) => (e.a === a.id && e.b === b.id) || (e.a === b.id && e.b === a.id)
     );
@@ -254,6 +282,12 @@ export default function Editor({ id, nombre, estilo, onCambiarEstilo, onInicio, 
       e.preventDefault();
       const [x, y] = aLienzo(e.clientX, e.clientY);
       crearNodo(x, y, tipoNuevo);
+      return;
+    }
+    if (modo === "sticker") {
+      e.preventDefault();
+      const [x, y] = aLienzo(e.clientX, e.clientY);
+      crearSticker(x, y, tipoStickerNuevo);
       return;
     }
     setSel(null);
@@ -351,7 +385,7 @@ export default function Editor({ id, nombre, estilo, onCambiarEstilo, onInicio, 
         eliminar(nodoSel.id);
         return;
       }
-      if (e.key === "Enter" && nodoSel && !editando) {
+      if (e.key === "Enter" && nodoSel && !editando && nodoSel.tipo !== "sticker") {
         e.preventDefault();
         registrarHistoria();
         setEditando(nodoSel.id);
@@ -484,6 +518,7 @@ export default function Editor({ id, nombre, estilo, onCambiarEstilo, onInicio, 
               medir={medir}
               onPointerDown={(e) => nodoDown(e, n)}
               onDobleClic={() => {
+                if (n.tipo === "sticker") return;
                 registrarHistoria();
                 setEditando(n.id);
               }}
@@ -535,159 +570,320 @@ export default function Editor({ id, nombre, estilo, onCambiarEstilo, onInicio, 
               boxShadow: "0 10px 26px -12px rgba(22,50,63,.45)",
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-              <BotonAccionColor
-                titulo="Escribir"
-                bg={AMBAR_CLARO}
-                color={C.focoTexto}
-                onClick={() => {
-                  registrarHistoria();
-                  setEditando(nodoSel.id);
-                }}
-              >
-                <path d="M4.5 19.5l1-4L15 6l3 3-9.5 9.5-4 1z" />
-                <path d="M13 8l3 3" />
-              </BotonAccionColor>
-              {nodoSel.tipo !== "titulo" && (
-                <BotonAccionColor
-                  titulo="Agregar tarea"
-                  bg={AZUL_CLARO}
-                  color={C.tareaTexto}
-                  onClick={() => setNuevaTarea(nodoSel.id)}
-                >
-                  <rect x="4.5" y="4.5" width="15" height="15" rx="3" />
-                  <path d="M8 12l2.5 2.5L16 9" />
-                </BotonAccionColor>
-              )}
-              <BotonAccionColor
-                titulo="Duplicar"
-                bg={VERDE_CLARO}
-                color={C.done}
-                onClick={duplicar}
-              >
-                <rect x="4" y="4" width="13" height="13" rx="2.5" />
-                <path d="M9 17v2a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2h-2" />
-              </BotonAccionColor>
-              {nodoSel.tipo !== "titulo" && (
-                <button
-                  className="nd-mini"
-                  title="Color del nodo"
-                  aria-label="Color del nodo"
-                  onClick={() => setMostrarColorNodo((v) => !v)}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    width: 28,
-                    height: 28,
-                    padding: 0,
-                    border: "none",
-                    borderRadius: 7,
-                    background: mostrarColorNodo ? C.hair : "transparent",
-                    color: C.inkSoft,
-                    cursor: "pointer",
-                  }}
-                >
-                  <svg
-                    width="15"
-                    height="15"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.6"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
+            {nodoSel.tipo === "sticker" ? (
+              <>
+                <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+                  <BotonAccionColor
+                    titulo="Duplicar"
+                    bg={VERDE_CLARO}
+                    color={C.done}
+                    onClick={duplicar}
                   >
-                    <path d="M12 3.6c-4.7 0-8.4 3.5-8.4 7.9 0 4.4 3.4 6.9 6.4 6.9 1.6 0 2.1.9 1.6 2 -.4 1 .3 2 1.5 2 4.3 0 7.3-4.1 7.3-8.7 0-5.2-3.7-10.1-8.4-10.1z" />
-                    <circle cx="8.4" cy="10.4" r="1.05" fill="currentColor" stroke="none" />
-                    <circle cx="12" cy="7.8" r="1.05" fill="currentColor" stroke="none" />
-                    <circle cx="15.6" cy="10.4" r="1.05" fill="currentColor" stroke="none" />
-                  </svg>
-                </button>
-              )}
-              <span style={separador} />
-              {TIPOS.map(([k, label]) => (
-                <button
-                  key={k}
-                  className="nd-mini"
-                  style={{
-                    ...mini,
-                    color: nodoSel.tipo === k ? C.ink : C.inkSoft,
-                    background: nodoSel.tipo === k ? C.hair : "transparent",
-                  }}
-                  title={label}
-                  onClick={() => {
-                    if (nodoSel.tipo !== k) registrarHistoria();
-                    actualizar(nodoSel.id, { tipo: k });
-                  }}
-                >
-                  {TIPOS_ABREV[k]}
-                </button>
-              ))}
-              <span style={separador} />
-              <BotonAccionColor
-                titulo="Eliminar"
-                bg={PELIGRO_CLARO}
-                color={C.peligro}
-                onClick={() => eliminar(nodoSel.id)}
-              >
-                <path d="M5 7h14" />
-                <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-                <path d="M7 7l1 12a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1l1-12" />
-                <line x1="10" y1="11" x2="10" y2="16" />
-                <line x1="14" y1="11" x2="14" y2="16" />
-              </BotonAccionColor>
-            </div>
-
-            {mostrarColorNodo && nodoSel.tipo !== "titulo" && (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 5,
-                  paddingTop: 6,
-                  paddingLeft: 2,
-                  borderTop: `1px solid ${C.hair}`,
-                }}
-              >
-                <button
-                  title="Sin color"
-                  onClick={() => {
-                    registrarHistoria();
-                    actualizar(nodoSel.id, { color: null });
-                  }}
-                  className="nd-swatch"
-                  style={{
-                    width: 20,
-                    height: 20,
-                    borderRadius: "50%",
-                    cursor: "pointer",
-                    background: C.panel,
-                    border: `1.5px solid ${!nodoSel.color ? C.ink : C.borde}`,
-                    boxShadow: !nodoSel.color ? `0 0 0 2px ${C.panel} inset` : "none",
-                  }}
-                />
-                {Object.entries(COLORES_NODO).map(([k, hex]) => (
+                    <rect x="4" y="4" width="13" height="13" rx="2.5" />
+                    <path d="M9 17v2a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2h-2" />
+                  </BotonAccionColor>
+                  <span style={separador} />
+                  <div style={sesionCaja}>
+                    <button
+                      className="nd-mini"
+                      style={sesionBtn}
+                      aria-label="Achicar sticker"
+                      onClick={() => {
+                        registrarHistoria();
+                        actualizar(nodoSel.id, {
+                          tamano: clamp(
+                            (nodoSel.tamano || STICKER_TAMANO_DEFECTO) - 8,
+                            STICKER_TAMANO_MIN,
+                            STICKER_TAMANO_MAX
+                          ),
+                        });
+                      }}
+                    >
+                      −
+                    </button>
+                    <span style={{ fontSize: 11, padding: "0 6px", color: C.ink }}>
+                      {nodoSel.tamano || STICKER_TAMANO_DEFECTO}
+                    </span>
+                    <button
+                      className="nd-mini"
+                      style={sesionBtn}
+                      aria-label="Agrandar sticker"
+                      onClick={() => {
+                        registrarHistoria();
+                        actualizar(nodoSel.id, {
+                          tamano: clamp(
+                            (nodoSel.tamano || STICKER_TAMANO_DEFECTO) + 8,
+                            STICKER_TAMANO_MIN,
+                            STICKER_TAMANO_MAX
+                          ),
+                        });
+                      }}
+                    >
+                      +
+                    </button>
+                  </div>
+                  <span style={separador} />
                   <button
-                    key={k}
-                    title={k}
+                    className="nd-mini"
+                    title="Diseño del sticker"
+                    aria-label="Diseño del sticker"
+                    onClick={() => setMostrarColorNodo((v) => !v)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      width: 28,
+                      height: 28,
+                      padding: 0,
+                      border: "none",
+                      borderRadius: 7,
+                      background: mostrarColorNodo ? C.hair : "transparent",
+                      color: C.inkSoft,
+                      cursor: "pointer",
+                    }}
+                  >
+                    <svg
+                      width="15"
+                      height="15"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.6"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M12 3.6c-4.7 0-8.4 3.5-8.4 7.9 0 4.4 3.4 6.9 6.4 6.9 1.6 0 2.1.9 1.6 2 -.4 1 .3 2 1.5 2 4.3 0 7.3-4.1 7.3-8.7 0-5.2-3.7-10.1-8.4-10.1z" />
+                      <circle cx="8.4" cy="10.4" r="1.05" fill="currentColor" stroke="none" />
+                      <circle cx="12" cy="7.8" r="1.05" fill="currentColor" stroke="none" />
+                      <circle cx="15.6" cy="10.4" r="1.05" fill="currentColor" stroke="none" />
+                    </svg>
+                  </button>
+                  <span style={separador} />
+                  <BotonAccionColor
+                    titulo="Eliminar"
+                    bg={PELIGRO_CLARO}
+                    color={C.peligro}
+                    onClick={() => eliminar(nodoSel.id)}
+                  >
+                    <path d="M5 7h14" />
+                    <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                    <path d="M7 7l1 12a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1l1-12" />
+                    <line x1="10" y1="11" x2="10" y2="16" />
+                    <line x1="14" y1="11" x2="14" y2="16" />
+                  </BotonAccionColor>
+                </div>
+
+                {mostrarColorNodo && (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 5,
+                      paddingTop: 6,
+                      paddingLeft: 2,
+                      borderTop: `1px solid ${C.hair}`,
+                    }}
+                  >
+                    {PATRONES.map((p) => (
+                      <button
+                        key={p.id}
+                        title={p.nombre}
+                        onClick={() => {
+                          registrarHistoria();
+                          actualizar(nodoSel.id, { patron: p.id });
+                        }}
+                        className="nd-swatch"
+                        style={{
+                          width: 20,
+                          height: 20,
+                          borderRadius: 6,
+                          cursor: "pointer",
+                          border: `1.5px solid ${nodoSel.patron === p.id ? C.ink : C.borde}`,
+                          ...estiloTarjeta({ patron: p.id, color: nodoSel.color }),
+                        }}
+                      />
+                    ))}
+                    <span style={separador} />
+                    {Object.entries(COLORES_TARJETA).map(([k, hex]) => (
+                      <button
+                        key={k}
+                        title={k}
+                        onClick={() => {
+                          registrarHistoria();
+                          actualizar(nodoSel.id, { color: k });
+                        }}
+                        className="nd-swatch"
+                        style={{
+                          width: 20,
+                          height: 20,
+                          borderRadius: "50%",
+                          cursor: "pointer",
+                          background: hex,
+                          border: `1px solid ${nodoSel.color === k ? C.ink : "transparent"}`,
+                          boxShadow: nodoSel.color === k ? `0 0 0 2px ${C.panel} inset` : "none",
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+                  <BotonAccionColor
+                    titulo="Escribir"
+                    bg={AMBAR_CLARO}
+                    color={C.focoTexto}
                     onClick={() => {
                       registrarHistoria();
-                      actualizar(nodoSel.id, { color: k });
+                      setEditando(nodoSel.id);
                     }}
-                    className="nd-swatch"
+                  >
+                    <path d="M4.5 19.5l1-4L15 6l3 3-9.5 9.5-4 1z" />
+                    <path d="M13 8l3 3" />
+                  </BotonAccionColor>
+                  {nodoSel.tipo !== "titulo" && (
+                    <BotonAccionColor
+                      titulo="Agregar tarea"
+                      bg={AZUL_CLARO}
+                      color={C.tareaTexto}
+                      onClick={() => setNuevaTarea(nodoSel.id)}
+                    >
+                      <rect x="4.5" y="4.5" width="15" height="15" rx="3" />
+                      <path d="M8 12l2.5 2.5L16 9" />
+                    </BotonAccionColor>
+                  )}
+                  <BotonAccionColor
+                    titulo="Duplicar"
+                    bg={VERDE_CLARO}
+                    color={C.done}
+                    onClick={duplicar}
+                  >
+                    <rect x="4" y="4" width="13" height="13" rx="2.5" />
+                    <path d="M9 17v2a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2h-2" />
+                  </BotonAccionColor>
+                  {nodoSel.tipo !== "titulo" && (
+                    <button
+                      className="nd-mini"
+                      title="Color del nodo"
+                      aria-label="Color del nodo"
+                      onClick={() => setMostrarColorNodo((v) => !v)}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: 28,
+                        height: 28,
+                        padding: 0,
+                        border: "none",
+                        borderRadius: 7,
+                        background: mostrarColorNodo ? C.hair : "transparent",
+                        color: C.inkSoft,
+                        cursor: "pointer",
+                      }}
+                    >
+                      <svg
+                        width="15"
+                        height="15"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.6"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M12 3.6c-4.7 0-8.4 3.5-8.4 7.9 0 4.4 3.4 6.9 6.4 6.9 1.6 0 2.1.9 1.6 2 -.4 1 .3 2 1.5 2 4.3 0 7.3-4.1 7.3-8.7 0-5.2-3.7-10.1-8.4-10.1z" />
+                        <circle cx="8.4" cy="10.4" r="1.05" fill="currentColor" stroke="none" />
+                        <circle cx="12" cy="7.8" r="1.05" fill="currentColor" stroke="none" />
+                        <circle cx="15.6" cy="10.4" r="1.05" fill="currentColor" stroke="none" />
+                      </svg>
+                    </button>
+                  )}
+                  <span style={separador} />
+                  {TIPOS.map(([k, label]) => (
+                    <button
+                      key={k}
+                      className="nd-mini"
+                      style={{
+                        ...mini,
+                        color: nodoSel.tipo === k ? C.ink : C.inkSoft,
+                        background: nodoSel.tipo === k ? C.hair : "transparent",
+                      }}
+                      title={label}
+                      onClick={() => {
+                        if (nodoSel.tipo !== k) registrarHistoria();
+                        actualizar(nodoSel.id, { tipo: k });
+                      }}
+                    >
+                      {TIPOS_ABREV[k]}
+                    </button>
+                  ))}
+                  <span style={separador} />
+                  <BotonAccionColor
+                    titulo="Eliminar"
+                    bg={PELIGRO_CLARO}
+                    color={C.peligro}
+                    onClick={() => eliminar(nodoSel.id)}
+                  >
+                    <path d="M5 7h14" />
+                    <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                    <path d="M7 7l1 12a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1l1-12" />
+                    <line x1="10" y1="11" x2="10" y2="16" />
+                    <line x1="14" y1="11" x2="14" y2="16" />
+                  </BotonAccionColor>
+                </div>
+
+                {mostrarColorNodo && nodoSel.tipo !== "titulo" && (
+                  <div
                     style={{
-                      width: 20,
-                      height: 20,
-                      borderRadius: "50%",
-                      cursor: "pointer",
-                      background: hex,
-                      border: `1.5px solid ${nodoSel.color === k ? C.ink : "transparent"}`,
-                      boxShadow: nodoSel.color === k ? `0 0 0 2px ${C.panel} inset` : "none",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 5,
+                      paddingTop: 6,
+                      paddingLeft: 2,
+                      borderTop: `1px solid ${C.hair}`,
                     }}
-                  />
-                ))}
-              </div>
+                  >
+                    <button
+                      title="Sin color"
+                      onClick={() => {
+                        registrarHistoria();
+                        actualizar(nodoSel.id, { color: null });
+                      }}
+                      className="nd-swatch"
+                      style={{
+                        width: 20,
+                        height: 20,
+                        borderRadius: "50%",
+                        cursor: "pointer",
+                        background: C.panel,
+                        border: `1.5px solid ${!nodoSel.color ? C.ink : C.borde}`,
+                        boxShadow: !nodoSel.color ? `0 0 0 2px ${C.panel} inset` : "none",
+                      }}
+                    />
+                    {Object.entries(COLORES_NODO).map(([k, hex]) => (
+                      <button
+                        key={k}
+                        title={k}
+                        onClick={() => {
+                          registrarHistoria();
+                          actualizar(nodoSel.id, { color: k });
+                        }}
+                        className="nd-swatch"
+                        style={{
+                          width: 20,
+                          height: 20,
+                          borderRadius: "50%",
+                          cursor: "pointer",
+                          background: hex,
+                          border: `1.5px solid ${nodoSel.color === k ? C.ink : "transparent"}`,
+                          boxShadow: nodoSel.color === k ? `0 0 0 2px ${C.panel} inset` : "none",
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
@@ -752,6 +948,38 @@ export default function Editor({ id, nombre, estilo, onCambiarEstilo, onInicio, 
                 style={boton(tipoNuevo === k, 12)}
               >
                 {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Selector de sticker */}
+      {modo === "sticker" && (
+        <div style={{ ...flotante, bottom: 86 }}>
+          <div style={caja}>
+            <span style={etiqueta}>Vas a poner</span>
+            {STICKERS.map((s) => (
+              <button
+                key={s.id}
+                className={`nd-btn ${tipoStickerNuevo === s.id ? "on" : ""}`}
+                onClick={() => setTipoStickerNuevo(s.id)}
+                title={s.nombre}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 30,
+                  height: 30,
+                  padding: 0,
+                  borderRadius: 8,
+                  cursor: "pointer",
+                  border: `1px solid ${tipoStickerNuevo === s.id ? C.ink : C.borde}`,
+                  background: tipoStickerNuevo === s.id ? C.ink : "transparent",
+                  color: tipoStickerNuevo === s.id ? C.panel : C.inkSoft,
+                }}
+              >
+                <IconoSticker tipo={s.id} style={{ width: 16, height: 16 }} />
               </button>
             ))}
           </div>
@@ -857,6 +1085,18 @@ export default function Editor({ id, nombre, estilo, onCambiarEstilo, onInicio, 
           >
             Conectar
           </Dock>
+          <Dock
+            activo={modo === "sticker"}
+            onClick={() => {
+              setModo("sticker");
+              setPaleta(false);
+            }}
+            icono={
+              <path d="M12 2.5 14.23 8.93 21.03 9.06 15.61 13.17 17.59 19.69 12 15.8 6.41 19.69 8.39 13.17 2.97 9.06 9.77 8.93Z" />
+            }
+          >
+            Sticker
+          </Dock>
 
           <span style={{ ...separador, height: 22, margin: "0 5px" }} />
 
@@ -892,8 +1132,8 @@ export default function Editor({ id, nombre, estilo, onCambiarEstilo, onInicio, 
             acento={C.foco}
             onClick={() => {
               if (!nodoSel) return avisar("Selecciona un nodo para ponerlo en foco.");
-              if (nodoSel.tipo === "titulo")
-                return avisar("El foco se pone sobre nodos, no sobre títulos.");
+              if (nodoSel.tipo === "titulo" || nodoSel.tipo === "sticker")
+                return avisar("El foco se pone sobre nodos, no sobre títulos ni stickers.");
               registrarHistoria();
               actualizar(nodoSel.id, { foco: !nodoSel.foco });
             }}
