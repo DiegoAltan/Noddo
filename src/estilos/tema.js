@@ -31,7 +31,7 @@ export const MARCA =
   'Futura, "Avenir Next", "Century Gothic", "Trebuchet MS", Helvetica, sans-serif';
 export const SERIF = 'Iowan Old Style, "Palatino Linotype", Palatino, Georgia, serif';
 
-export const W = { central: 240, acompanamiento: 172, titulo: 264 };
+export const W = { central: 240, acompanamiento: 172, titulo: 264, emocion: 172 };
 export const NOTCH = "polygon(0 0, calc(100% - 15px) 0, 100% 15px, 100% 100%, 0 100%)";
 export const TIPOS = [
   ["central", "Central"],
@@ -63,6 +63,22 @@ export const COLORES_NODO = {
   musgo: "#43713A",
   ocre: "#D1841F",
 };
+/* ============ Emociones ============ */
+// Un color por emoción, en la misma familia tonal que COLORES_NODO (clara
+// pero no pastel) y un poco más saturados a propósito — son nodos que
+// deben notarse en el mapa.
+export const COLORES_EMOCION = {
+  alegria: "#E0A427",
+  tristeza: "#3B6FA6",
+  ira: "#C23B32",
+  miedo: "#4E3B7A",
+  asco: "#7D7A35",
+  ansiedad: "#DD7A2E",
+  calma: "#2E9C8F",
+  amor: "#D9668F",
+  aburrimiento: "#83898F",
+};
+
 export const PATRONES = [
   { id: "plano", nombre: "Plano" },
   { id: "puntos", nombre: "Puntos" },

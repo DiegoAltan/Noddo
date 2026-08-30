@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect } from "react";
-import { C, FONT, SERIF, W, NOTCH, COLORES_NODO } from "../estilos/tema.js";
+import { C, FONT, SERIF, W, NOTCH, COLORES_NODO, COLORES_EMOCION } from "../estilos/tema.js";
 import { quitar } from "../estilos/compartidos.js";
+import { mezclarConBlanco } from "../estilos/patrones.js";
 import { IconoSticker } from "./iconosSticker.jsx";
 
 /* ============ Nodo ============ */
@@ -62,7 +63,8 @@ export default function Nodo({
 
   const central = n.tipo === "central";
   const titulo = n.tipo === "titulo";
-  const colorHex = n.color ? COLORES_NODO[n.color] : null;
+  const emocion = n.tipo === "emocion";
+  const colorHex = n.color ? (emocion ? COLORES_EMOCION[n.color] : COLORES_NODO[n.color]) : null;
 
   const anillo = n.foco
     ? `inset 0 0 0 2px ${C.foco}`
@@ -81,8 +83,12 @@ export default function Nodo({
         boxShadow: seleccionado ? `inset 0 0 0 1px ${C.borde}` : "none",
       }
     : {
-        background: central ? C.panel : "rgba(255,255,255,.74)",
-        backdropFilter: central ? "none" : "blur(3px)",
+        background: central
+          ? C.panel
+          : emocion
+          ? mezclarConBlanco(colorHex || C.inkTenue, 0.32)
+          : "rgba(255,255,255,.74)",
+        backdropFilter: central || emocion ? "none" : "blur(3px)",
         borderRadius: central ? 16 : 4,
         clipPath: central ? "none" : NOTCH,
         overflow: "hidden",
@@ -106,7 +112,7 @@ export default function Nodo({
         ...marco,
       }}
     >
-      {!titulo && colorHex && (
+      {!titulo && !emocion && colorHex && (
         <div
           style={{
             position: "absolute",
@@ -121,7 +127,7 @@ export default function Nodo({
       <div
         style={{
           padding: titulo ? "3px 4px" : central ? "14px 17px" : "10px 12px",
-          paddingLeft: !titulo && colorHex ? (central ? 21 : 16) : undefined,
+          paddingLeft: !titulo && !emocion && colorHex ? (central ? 21 : 16) : undefined,
         }}
       >
         {!titulo && (
@@ -146,7 +152,7 @@ export default function Nodo({
                 flexShrink: 0,
               }}
             />
-            {central ? "Central" : "Acompañamiento"}
+            {central ? "Central" : emocion ? "Emoción" : "Acompañamiento"}
             {n.foco ? " · en foco" : ""}
           </div>
         )}
@@ -163,6 +169,8 @@ export default function Nodo({
                 ? "Nombre de la sección"
                 : central
                 ? "El nudo del relato…"
+                : emocion
+                ? "Nombra la emoción…"
                 : "Lo que aparece alrededor…"
             }
             rows={titulo ? 1 : 2}

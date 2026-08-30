@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { toPng } from "html-to-image";
-import { C, FONT, SERIF, CSS, W, TIPOS, TIPOS_ABREV, COLORES_NODO, COLORES_TARJETA, PATRONES } from "../estilos/tema.js";
+import { C, FONT, SERIF, CSS, W, TIPOS, TIPOS_ABREV, COLORES_NODO, COLORES_TARJETA, COLORES_EMOCION, PATRONES } from "../estilos/tema.js";
 import { estiloTarjeta, patronLienzo, colorFondoLienzo, AMBAR_CLARO, AZUL_CLARO, PELIGRO_CLARO, VERDE_CLARO } from "../estilos/patrones.js";
 import {
   pantalla,
@@ -26,6 +26,7 @@ import Nodo from "./Nodo.jsx";
 import Dock from "./Dock.jsx";
 import BotonAccionColor from "./BotonAccionColor.jsx";
 import { STICKERS, IconoSticker } from "./iconosSticker.jsx";
+import { EMOCIONES } from "./emociones.js";
 
 const STICKER_TAMANO_DEFECTO = 64;
 const STICKER_TAMANO_MIN = 32;
@@ -52,6 +53,7 @@ export default function Editor({ id, nombre, estilo, onCambiarEstilo, onInicio, 
   const [modo, setModo] = useState("mover");
   const [tipoNuevo, setTipoNuevo] = useState("acompanamiento");
   const [tipoStickerNuevo, setTipoStickerNuevo] = useState("corazon");
+  const [emocionNueva, setEmocionNueva] = useState("alegria");
   const [alturas, setAlturas] = useState({});
   const [editando, setEditando] = useState(null);
   const [nuevaTarea, setNuevaTarea] = useState(null);
@@ -207,6 +209,24 @@ export default function Editor({ id, nombre, estilo, onCambiarEstilo, onInicio, 
     setSel(n.id);
   };
 
+  const crearEmocion = (x, y, emocionId) => {
+    registrarHistoria();
+    const emocion = EMOCIONES.find((e) => e.id === emocionId) || EMOCIONES[0];
+    const n = {
+      id: uid(),
+      x: x - W.emocion / 2,
+      y: y - 27,
+      texto: emocion.nombre,
+      tipo: "emocion",
+      color: emocion.id,
+      foco: false,
+      tareas: [],
+      sesion,
+    };
+    setNodos((ns) => [...ns, n]);
+    setSel(n.id);
+  };
+
   const actualizar = (nid, campos) =>
     setNodos((ns) => ns.map((n) => (n.id === nid ? { ...n, ...campos } : n)));
 
@@ -288,6 +308,12 @@ export default function Editor({ id, nombre, estilo, onCambiarEstilo, onInicio, 
       e.preventDefault();
       const [x, y] = aLienzo(e.clientX, e.clientY);
       crearSticker(x, y, tipoStickerNuevo);
+      return;
+    }
+    if (modo === "emocion") {
+      e.preventDefault();
+      const [x, y] = aLienzo(e.clientX, e.clientY);
+      crearEmocion(x, y, emocionNueva);
       return;
     }
     setSel(null);
@@ -822,25 +848,29 @@ export default function Editor({ id, nombre, estilo, onCambiarEstilo, onInicio, 
                       </svg>
                     </button>
                   )}
-                  <span style={separador} />
-                  {TIPOS.map(([k, label]) => (
-                    <button
-                      key={k}
-                      className="nd-mini"
-                      style={{
-                        ...mini,
-                        color: nodoSel.tipo === k ? C.ink : C.inkSoft,
-                        background: nodoSel.tipo === k ? C.hair : "transparent",
-                      }}
-                      title={label}
-                      onClick={() => {
-                        if (nodoSel.tipo !== k) registrarHistoria();
-                        actualizar(nodoSel.id, { tipo: k });
-                      }}
-                    >
-                      {TIPOS_ABREV[k]}
-                    </button>
-                  ))}
+                  {nodoSel.tipo !== "emocion" && (
+                    <>
+                      <span style={separador} />
+                      {TIPOS.map(([k, label]) => (
+                        <button
+                          key={k}
+                          className="nd-mini"
+                          style={{
+                            ...mini,
+                            color: nodoSel.tipo === k ? C.ink : C.inkSoft,
+                            background: nodoSel.tipo === k ? C.hair : "transparent",
+                          }}
+                          title={label}
+                          onClick={() => {
+                            if (nodoSel.tipo !== k) registrarHistoria();
+                            actualizar(nodoSel.id, { tipo: k });
+                          }}
+                        >
+                          {TIPOS_ABREV[k]}
+                        </button>
+                      ))}
+                    </>
+                  )}
                   <span style={separador} />
                   <BotonAccionColor
                     titulo="Eliminar"
@@ -884,10 +914,12 @@ export default function Editor({ id, nombre, estilo, onCambiarEstilo, onInicio, 
                         boxShadow: !nodoSel.color ? `0 0 0 2px ${C.panel} inset` : "none",
                       }}
                     />
-                    {Object.entries(COLORES_NODO).map(([k, hex]) => (
+                    {Object.entries(
+                      nodoSel.tipo === "emocion" ? COLORES_EMOCION : COLORES_NODO
+                    ).map(([k, hex]) => (
                       <button
                         key={k}
-                        title={k}
+                        title={EMOCIONES.find((e) => e.id === k)?.colorNombre || k}
                         onClick={() => {
                           registrarHistoria();
                           actualizar(nodoSel.id, { color: k });
@@ -1009,6 +1041,47 @@ export default function Editor({ id, nombre, estilo, onCambiarEstilo, onInicio, 
         </div>
       )}
 
+      {/* Selector de emoción */}
+      {modo === "emocion" && (
+        <div style={{ ...flotante, bottom: 110 }}>
+          <div style={{ ...caja, maxWidth: "94vw" }}>
+            <span style={etiqueta}>Vas a poner</span>
+            {EMOCIONES.map((em) => (
+              <button
+                key={em.id}
+                className={`nd-btn ${emocionNueva === em.id ? "on" : ""}`}
+                onClick={() => setEmocionNueva(em.id)}
+                title={em.colorNombre}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 5,
+                  fontFamily: FONT,
+                  fontSize: 11,
+                  padding: "6px 9px",
+                  borderRadius: 7,
+                  cursor: "pointer",
+                  border: `1px solid ${emocionNueva === em.id ? C.ink : C.borde}`,
+                  background: emocionNueva === em.id ? C.ink : "transparent",
+                  color: emocionNueva === em.id ? C.panel : C.inkSoft,
+                }}
+              >
+                <span
+                  style={{
+                    width: 7,
+                    height: 7,
+                    borderRadius: "50%",
+                    background: COLORES_EMOCION[em.id],
+                    flexShrink: 0,
+                  }}
+                />
+                {em.nombre}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Paleta */}
       {paleta && (
         <div style={{ ...flotante, bottom: 86 }}>
@@ -1119,6 +1192,18 @@ export default function Editor({ id, nombre, estilo, onCambiarEstilo, onInicio, 
             }
           >
             Sticker
+          </Dock>
+          <Dock
+            activo={modo === "emocion"}
+            onClick={() => {
+              setModo("emocion");
+              setPaleta(false);
+            }}
+            icono={
+              <path d="M12 19.5c-4-3-8-6.2-8-10.3C4 6.6 6 4.5 8.5 4.5c1.5 0 2.8.8 3.5 2 .7-1.2 2-2 3.5-2C18 4.5 20 6.6 20 9.2c0 4.1-4 7.3-8 10.3z" />
+            }
+          >
+            Emoción
           </Dock>
 
           <span style={{ ...separador, height: 22, margin: "0 5px" }} />
