@@ -1,7 +1,6 @@
 import { useRef, useState, useEffect } from "react";
 import { C, FONT, SERIF, W, NOTCH, COLORES_NODO } from "../estilos/tema.js";
 import { quitar } from "../estilos/compartidos.js";
-import { estiloTarjeta } from "../estilos/patrones.js";
 import { IconoSticker } from "./iconosSticker.jsx";
 
 /* ============ Nodo ============ */
@@ -39,22 +38,22 @@ export default function Nodo({
           cursor: "grab",
           touchAction: "none",
           userSelect: "none",
-          boxShadow: seleccionado
-            ? `inset 0 0 0 2px ${C.ink}, 0 6px 16px -10px rgba(22,50,63,.5)`
-            : "0 6px 16px -12px rgba(22,50,63,.45)",
-          ...estiloTarjeta({ patron: n.patron, color: n.color }),
+          boxShadow: seleccionado ? `inset 0 0 0 2px ${C.ink}` : "none",
         }}
       >
         <IconoSticker
           tipo={n.sticker}
+          color={COLORES_NODO[n.color] || COLORES_NODO.bruma}
+          patron={n.patron}
+          idBase={n.id}
           style={{
             position: "absolute",
             top: "50%",
             left: "50%",
-            width: tamano * 0.5,
-            height: tamano * 0.5,
+            width: tamano * 0.82,
+            height: tamano * 0.82,
             transform: "translate(-50%, -50%)",
-            color: COLORES_NODO[n.color] || COLORES_NODO.bruma,
+            filter: "drop-shadow(0 4px 8px rgba(22,50,63,.35))",
           }}
         />
       </div>

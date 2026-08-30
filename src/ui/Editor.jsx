@@ -694,17 +694,29 @@ export default function Editor({ id, nombre, estilo, onCambiarEstilo, onInicio, 
                         }}
                         className="nd-swatch"
                         style={{
-                          width: 20,
-                          height: 20,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          width: 24,
+                          height: 24,
+                          padding: 0,
                           borderRadius: 6,
                           cursor: "pointer",
+                          background: "transparent",
                           border: `1.5px solid ${nodoSel.patron === p.id ? C.ink : C.borde}`,
-                          ...estiloTarjeta({ patron: p.id, color: nodoSel.color }),
                         }}
-                      />
+                      >
+                        <IconoSticker
+                          tipo={nodoSel.sticker}
+                          color={COLORES_NODO[nodoSel.color] || COLORES_NODO.bruma}
+                          patron={p.id}
+                          idBase={`prev-patron-${p.id}`}
+                          style={{ width: 15, height: 15 }}
+                        />
+                      </button>
                     ))}
                     <span style={separador} />
-                    {Object.entries(COLORES_TARJETA).map(([k, hex]) => (
+                    {Object.entries(COLORES_NODO).map(([k, hex]) => (
                       <button
                         key={k}
                         title={k}
@@ -714,15 +726,26 @@ export default function Editor({ id, nombre, estilo, onCambiarEstilo, onInicio, 
                         }}
                         className="nd-swatch"
                         style={{
-                          width: 20,
-                          height: 20,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          width: 24,
+                          height: 24,
+                          padding: 0,
                           borderRadius: "50%",
                           cursor: "pointer",
-                          background: hex,
-                          border: `1px solid ${nodoSel.color === k ? C.ink : "transparent"}`,
-                          boxShadow: nodoSel.color === k ? `0 0 0 2px ${C.panel} inset` : "none",
+                          background: "transparent",
+                          border: `1.5px solid ${nodoSel.color === k ? C.ink : "transparent"}`,
                         }}
-                      />
+                      >
+                        <IconoSticker
+                          tipo={nodoSel.sticker}
+                          color={hex}
+                          patron={nodoSel.patron}
+                          idBase={`prev-color-${k}`}
+                          style={{ width: 15, height: 15 }}
+                        />
+                      </button>
                     ))}
                   </div>
                 )}
