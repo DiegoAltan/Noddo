@@ -5,7 +5,7 @@ import Noddo from "../ui/Noddo.jsx";
 import { useAuth } from "./AuthProvider.jsx";
 
 export default function LoginProfesional({ onVolver }) {
-  const { entrarConGoogle } = useAuth();
+  const { entrarConGoogle, entrarModoPrueba } = useAuth();
 
   return (
     <div
@@ -39,10 +39,33 @@ export default function LoginProfesional({ onVolver }) {
         </p>
 
         {!supabaseConfigurado ? (
-          <p style={{ fontSize: 12.5, color: C.peligro, lineHeight: 1.5 }}>
-            Falta configurar Supabase (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY) para
-            poder iniciar sesión.
-          </p>
+          <>
+            <p style={{ fontSize: 12.5, color: C.peligro, lineHeight: 1.5, marginTop: 0 }}>
+              Falta configurar Supabase (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY) para
+              poder iniciar sesión con Google.
+            </p>
+            <button
+              className="nd-btn"
+              onClick={entrarModoPrueba}
+              style={{
+                width: "100%",
+                padding: "12px 16px",
+                fontFamily: FONT,
+                fontSize: 13.5,
+                border: `1px dashed ${C.borde}`,
+                borderRadius: 8,
+                background: "transparent",
+                color: C.inkSoft,
+                cursor: "pointer",
+              }}
+            >
+              Entrar en modo de prueba
+            </button>
+            <p style={{ fontSize: 11, color: C.inkTenue, lineHeight: 1.5, marginBottom: 0 }}>
+              Temporal, solo mientras pruebas la app: entra con un perfil ficticio y
+              guarda los lienzos en este navegador, no en Supabase.
+            </p>
+          </>
         ) : (
           <button
             className="nd-btn"

@@ -1,10 +1,16 @@
-import { supabase } from "../lib/supabaseClient.js";
+import { supabase, supabaseConfigurado } from "../lib/supabaseClient.js";
+import { leerLocal, escribirLocal } from "../lib/almacenLocal.js";
+
+// TEMPORAL — ver data/lienzos.js: mismo modo de prueba, mismo namespace.
+const K_LIENZO_PRUEBA = (id) => `noddo:prueba:lienzo:${id}`;
 
 // Lee el grafo (nodos+enlaces), la vista y la sesión de un lienzo.
 // Devuelve null si no existe o si RLS lo bloquea (lienzo de otro
 // profesional, por ejemplo) — igual que el leer() de localStorage que
 // reemplaza, para no tener que tocar la lógica del Editor.
 export async function leerGrafo(id) {
+  if (!supabaseConfigurado) return leerLocal(K_LIENZO_PRUEBA(id));
+
   const { data, error } = await supabase
     .from("lienzos")
     .select("grafo, vista, sesion")
@@ -23,6 +29,10 @@ export async function leerGrafo(id) {
 // Guarda el grafo completo de una sola vez (mismo patrón de autoguardado
 // por debounce que ya tenía el Editor). Devuelve true/false.
 export async function guardarGrafo(id, { nodos, enlaces, vista, sesion }) {
+  if (!supabaseConfigurado) {
+    return escribirLocal(K_LIENZO_PRUEBA(id), { nodos, enlaces, vista, sesion });
+  }
+
   const { error } = await supabase
     .from("lienzos")
     .update({

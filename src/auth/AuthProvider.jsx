@@ -74,14 +74,36 @@ export function AuthProvider({ children }) {
     });
   };
 
+  // TEMPORAL — mientras no haya un proyecto Supabase conectado (ver
+  // supabaseConfigurado), permite entrar con un perfil ficticio para poder
+  // probar Inicio/Editor. Se desactiva solo apenas VITE_SUPABASE_URL /
+  // VITE_SUPABASE_ANON_KEY estén configuradas: en ese caso este botón ni
+  // siquiera se muestra (ver LoginProfesional.jsx). Quitar junto con ese
+  // botón cuando ya no haga falta.
+  const entrarModoPrueba = () => {
+    setMensaje("");
+    setPerfil({
+      nombreCompleto: "Profesional de prueba",
+      profesion: "",
+      registroSIS: "",
+      registroMineduc: "",
+      correo: "",
+    });
+    setEstado("profesional");
+  };
+
   const salir = async () => {
-    await supabase.auth.signOut();
+    if (supabaseConfigurado) await supabase.auth.signOut();
     setMensaje("");
     setPerfil(null);
     setEstado("sin_sesion");
   };
 
   const guardarPerfil = async (datos) => {
+    if (!supabaseConfigurado) {
+      setPerfil(datos);
+      return true;
+    }
     const ok = await guardarPerfilRemoto(datos);
     if (ok) setPerfil(datos);
     return ok;
@@ -91,7 +113,16 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{ estado, perfil, mensaje, entrarConGoogle, salir, guardarPerfil, limpiarMensaje }}
+      value={{
+        estado,
+        perfil,
+        mensaje,
+        entrarConGoogle,
+        entrarModoPrueba,
+        salir,
+        guardarPerfil,
+        limpiarMensaje,
+      }}
     >
       {children}
     </AuthContext.Provider>
