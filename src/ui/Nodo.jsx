@@ -23,6 +23,167 @@ export default function Nodo({
   const [borrador, setBorrador] = useState("");
   useEffect(() => medir(n.id, ref.current), [n.id, medir]);
 
+  if (n.tipo === "emocion") {
+    const colorHex = COLORES_EMOCION[n.color] || COLORES_EMOCION.alegria;
+    const fondo = mezclarConBlanco(colorHex, 0.48);
+    const anillo = n.foco
+      ? `inset 0 0 0 2px ${C.foco}`
+      : seleccionado
+      ? `inset 0 0 0 2px ${C.ink}`
+      : `inset 0 0 0 1.5px ${colorHex}66`;
+
+    return (
+      <div
+        ref={ref}
+        className="nd-node"
+        onPointerDown={onPointerDown}
+        onDoubleClick={onDobleClic}
+        style={{
+          position: "absolute",
+          left: n.x,
+          top: n.y,
+          width: W.emocion,
+          cursor: "grab",
+          touchAction: "none",
+          userSelect: "none",
+          background: fondo,
+          borderRadius: 28,
+          overflow: "hidden",
+          boxShadow: anillo + ", 0 10px 22px -14px rgba(22,50,63,.5)",
+        }}
+      >
+        <div style={{ padding: "17px 20px" }}>
+          {editando ? (
+            <textarea
+              autoFocus
+              value={n.texto}
+              onChange={(e) => onTexto(e.target.value)}
+              onBlur={onFinEdicion}
+              onPointerDown={(e) => e.stopPropagation()}
+              placeholder="Nombra la emoción…"
+              rows={1}
+              style={{
+                width: "100%",
+                fontFamily: FONT,
+                fontSize: 14.5,
+                fontWeight: 600,
+                textAlign: "center",
+                lineHeight: 1.35,
+                color: C.ink,
+                background: C.panel,
+                border: `1px solid ${C.hair}`,
+                borderRadius: 6,
+                padding: 7,
+                resize: "none",
+              }}
+            />
+          ) : (
+            <div
+              style={{
+                fontFamily: FONT,
+                fontSize: 14.5,
+                fontWeight: 600,
+                textAlign: "center",
+                lineHeight: 1.35,
+                color: n.texto ? C.ink : C.inkTenue,
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-word",
+              }}
+            >
+              {n.texto || "Nombra la emoción…"}
+              {n.foco && (
+                <div style={{ fontSize: 10, fontWeight: 400, color: C.focoTexto, marginTop: 3 }}>
+                  en foco
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {(n.tareas.length > 0 || nuevaTarea) && (
+          <div
+            style={{
+              background: C.tarea,
+              borderTop: `1px solid ${C.tareaBorde}`,
+              padding: "8px 14px",
+            }}
+          >
+            {n.tareas.map((t) => (
+              <div
+                key={t.id}
+                onPointerDown={(e) => e.stopPropagation()}
+                style={{
+                  display: "flex",
+                  gap: 7,
+                  alignItems: "flex-start",
+                  fontSize: 12,
+                  lineHeight: 1.35,
+                  marginBottom: 4,
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={t.hecha}
+                  onChange={() => onToggleTarea(t.id)}
+                  style={{ marginTop: 1.5, accentColor: C.done, cursor: "pointer" }}
+                />
+                <span
+                  style={{
+                    flex: 1,
+                    color: t.hecha ? "#7BA0B2" : C.tareaTexto,
+                    textDecoration: t.hecha ? "line-through" : "none",
+                  }}
+                >
+                  {t.texto}
+                </span>
+                {seleccionado && (
+                  <button
+                    onClick={() => onQuitarTarea(t.id)}
+                    style={quitar}
+                    aria-label="Quitar tarea"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            ))}
+            {nuevaTarea && (
+              <input
+                autoFocus
+                value={borrador}
+                onPointerDown={(e) => e.stopPropagation()}
+                onChange={(e) => setBorrador(e.target.value)}
+                onBlur={() => {
+                  onNuevaTarea(borrador);
+                  setBorrador("");
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.stopPropagation();
+                    onNuevaTarea(borrador);
+                    setBorrador("");
+                  }
+                }}
+                placeholder="Nueva tarea"
+                style={{
+                  width: "100%",
+                  fontFamily: FONT,
+                  fontSize: 12,
+                  color: C.tareaTexto,
+                  background: C.panel,
+                  padding: "6px 8px",
+                  border: `1px solid ${C.tareaBorde}`,
+                  borderRadius: 5,
+                  marginTop: 4,
+                }}
+              />
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   if (n.tipo === "sticker") {
     const tamano = n.tamano || 64;
     return (
@@ -63,8 +224,7 @@ export default function Nodo({
 
   const central = n.tipo === "central";
   const titulo = n.tipo === "titulo";
-  const emocion = n.tipo === "emocion";
-  const colorHex = n.color ? (emocion ? COLORES_EMOCION[n.color] : COLORES_NODO[n.color]) : null;
+  const colorHex = n.color ? COLORES_NODO[n.color] : null;
 
   const anillo = n.foco
     ? `inset 0 0 0 2px ${C.foco}`
@@ -83,12 +243,8 @@ export default function Nodo({
         boxShadow: seleccionado ? `inset 0 0 0 1px ${C.borde}` : "none",
       }
     : {
-        background: central
-          ? C.panel
-          : emocion
-          ? mezclarConBlanco(colorHex || C.inkTenue, 0.32)
-          : "rgba(255,255,255,.74)",
-        backdropFilter: central || emocion ? "none" : "blur(3px)",
+        background: central ? C.panel : "rgba(255,255,255,.74)",
+        backdropFilter: central ? "none" : "blur(3px)",
         borderRadius: central ? 16 : 4,
         clipPath: central ? "none" : NOTCH,
         overflow: "hidden",
@@ -112,7 +268,7 @@ export default function Nodo({
         ...marco,
       }}
     >
-      {!titulo && !emocion && colorHex && (
+      {!titulo && colorHex && (
         <div
           style={{
             position: "absolute",
@@ -127,7 +283,7 @@ export default function Nodo({
       <div
         style={{
           padding: titulo ? "3px 4px" : central ? "14px 17px" : "10px 12px",
-          paddingLeft: !titulo && !emocion && colorHex ? (central ? 21 : 16) : undefined,
+          paddingLeft: !titulo && colorHex ? (central ? 21 : 16) : undefined,
         }}
       >
         {!titulo && (
@@ -152,7 +308,7 @@ export default function Nodo({
                 flexShrink: 0,
               }}
             />
-            {central ? "Central" : emocion ? "Emoción" : "Acompañamiento"}
+            {central ? "Central" : "Acompañamiento"}
             {n.foco ? " · en foco" : ""}
           </div>
         )}
@@ -169,8 +325,6 @@ export default function Nodo({
                 ? "Nombre de la sección"
                 : central
                 ? "El nudo del relato…"
-                : emocion
-                ? "Nombra la emoción…"
                 : "Lo que aparece alrededor…"
             }
             rows={titulo ? 1 : 2}
